@@ -25,9 +25,8 @@ import java.util.List;
  */
 public class LumisMainMenu extends Screen implements QClient {
 
-    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("lumis", "textures/mainmenu/mainmenufon.png");
+    private static final Identifier BACKGROUND_TEXTURE = Identifier.of("lumis", "textures/mainmenu/mainmenu.png");
 
-    private static final int ACCENT_LEFT = 0xFF8A6CFF;
     private static final int TEXT = 0xFFFFFFFF;
     private static final int SUBTEXT = 0xFF9A9AA8;
     private static final int BTN_BG = 0xFF181820;
@@ -87,13 +86,26 @@ public class LumisMainMenu extends Screen implements QClient {
             renderButton(ms, b, mouseX, mouseY, delta);
         }
 
-        // Версия в углу
-        Font small = font(13);
-        if (small != null) {
-            drawV(small, ms, "lumis • 1.21.4 • best dlc", 14f, height - 16f, SUBTEXT);
-        }
+        // Анимированная приветственная надпись над колонкой кнопок
+        renderGreeting(ms);
 
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    private void renderGreeting(MatrixStack ms) {
+        String name = (mc != null && mc.getSession() != null) ? mc.getSession().getUsername() : null;
+        if (name == null || name.isEmpty()) name = "Player";
+
+        String text = "Glad to see you, " + name;
+        Font f = font(26);
+        if (f == null) return;
+
+        float x = (width - f.getStringWidth(text)) / 2f;
+        float topButtonY = buttons.isEmpty() ? height / 2f : buttons.get(0).y;
+        float y = topButtonY - 44f;
+
+        // Бегущий градиент: фиолетовый -> бирюзовый
+        f.drawAnimatedGradientStringHorizontal(ms, text, x, y, 0xFF7D5CFF, 0xFF15C79B, 1.0f);
     }
 
     private void renderButton(MatrixStack ms, MenuButton b, int mouseX, int mouseY, float delta) {
@@ -101,23 +113,18 @@ public class LumisMainMenu extends Screen implements QClient {
         b.hover.update(hovered ? 1f : 0f);
         float h = b.hover.getValue();
 
-        float slide = h * 8f;
-        float bx = b.x - slide;
+        float lift = h * 4f;
+        float bx = b.x;
+        float by = b.y - lift;
 
         int bg = mixColor(BTN_BG, BTN_BG_HOVER, h);
-        RenderUtils.drawShadow(ms, bx, b.y, b.w, b.h, 10f, 14f, (int) (0x40 * h) << 24);
-        RenderUtils.drawRoundedRect(ms, bx, b.y, b.w, b.h, 10f, bg);
-        RenderUtils.drawRoundedRectOutline(ms, bx, b.y, b.w, b.h, 10f, 1f, BORDER, BORDER, BORDER, BORDER);
-
-        // Акцентный индикатор слева (растёт при наведении)
-        float barH = (b.h - 14f) * h;
-        if (barH > 0.5f) {
-            RenderUtils.drawRoundedRect(ms, bx + 6f, b.y + (b.h - barH) / 2f, 3f, barH, 1.5f, ACCENT_LEFT);
-        }
+        RenderUtils.drawShadow(ms, bx, by, b.w, b.h, 10f, 14f, (int) (0x40 * h) << 24);
+        RenderUtils.drawRoundedRect(ms, bx, by, b.w, b.h, 10f, bg);
+        RenderUtils.drawRoundedRectOutline(ms, bx, by, b.w, b.h, 10f, 1f, BORDER, BORDER, BORDER, BORDER);
 
         int textColor = mixColor(0xFFCFCFE0, TEXT, h);
         Font f = font(17);
-        drawV(f, ms, b.label, bx + 18f, b.y + b.h / 2f, textColor);
+        drawV(f, ms, b.label, bx + 18f, by + b.h / 2f, textColor);
     }
 
     private void drawV(Font f, MatrixStack ms, String text, float x, float centerY, int color) {
@@ -141,9 +148,9 @@ public class LumisMainMenu extends Screen implements QClient {
         if (button == 0) {
             layoutButtons();
             for (MenuButton b : buttons) {
-                float slide = b.hover.getValue() * 8f;
-                float bx = b.x - slide;
-                if (mouseX >= bx && mouseX <= bx + b.w && mouseY >= b.y && mouseY <= b.y + b.h) {
+                float lift = b.hover.getValue() * 4f;
+                float by = b.y - lift;
+                if (mouseX >= b.x && mouseX <= b.x + b.w && mouseY >= by && mouseY <= by + b.h) {
                     b.action.run();
                     return true;
                 }

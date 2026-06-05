@@ -10,6 +10,7 @@ import fun.lumis.api.utils.render.fonts.msdf.Fonts;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
@@ -202,23 +203,11 @@ public class AltManagerScreen extends Screen implements QClient {
                 int rowColor = selected ? ColorUtils.rgba(45, 40, 70, 255) : (hovered ? ROW_HOVER : ROW);
                 RenderUtils.drawRoundedRect(ms, rowX, top + 2f, rowW, rowH - 4f, 8f, rowColor);
 
-                if (selected) {
-                    RenderUtils.drawRoundedRect(ms, rowX, top + 6f, 3f, rowH - 12f, 1.5f, ACCENT);
-                }
-
                 // Голова
                 RenderUtils.drawPlayerHead(ms, name, rowX + 9f, top + (rowH - 18f) / 2f, 18f, 4f);
 
                 // Ник
                 drawV(font(15), ms, name, rowX + 35f, top + rowH / 2f, TEXT);
-
-                if (hovered) {
-                    Font hint = font(11);
-                    String hintText = "ЛКМ — выбрать  •  ПКМ — удалить";
-                    if (hint != null) {
-                        drawV(hint, ms, hintText, rowX + rowW - 12f - hint.getStringWidth(hintText), top + rowH / 2f, SUBTEXT);
-                    }
-                }
             }
 
             y += rowH;
@@ -266,7 +255,7 @@ public class AltManagerScreen extends Screen implements QClient {
         addAnim.update(checkHover ? 1f : 0f);
         int checkBg = ColorUtils.interpolateColor(0xFF24242F, ACCENT, addAnim.getValue());
         RenderUtils.drawRoundedRect(ms, cx, wy, bs, bs, 8f, checkBg);
-        drawCenterV(font(18), ms, "\u2713", cx + bs / 2f, wy + bs / 2f, TEXT);
+        drawCheck(ms, cx + bs / 2f, wy + bs / 2f, bs * 0.46f, TEXT);
 
         // Кнопка ChatGPT (рандомный ник)
         float gx = gptX();
@@ -274,9 +263,33 @@ public class AltManagerScreen extends Screen implements QClient {
         gptAnim.update(gptHover ? 1f : 0f);
         int gptBg = ColorUtils.interpolateColor(GPT_GREEN, 0xFF15C79B, gptAnim.getValue());
         RenderUtils.drawRoundedRect(ms, gx, wy, bs, bs, 8f, gptBg);
-        // Стилизованный логотип ChatGPT: искра + подпись
-        drawCenterV(font(13), ms, "GPT", gx + bs / 2f, wy + bs / 2f - 4f, 0xFFFFFFFF);
-        drawCenterV(font(11), ms, "\u2726", gx + bs / 2f, wy + bs / 2f + 7f, 0xFFE9FFF7);
+        // Подпись GPT по центру кнопки
+        drawCenterV(font(14), ms, "GPT", gx + bs / 2f, wy + bs / 2f, 0xFFFFFFFF);
+    }
+
+    /**
+     * Рисует галочку примитивами — в MSDF-шрифтах нет глифа U+2713, поэтому собираем её из
+     * двух повёрнутых тонких прямоугольников. (cx, cy) — центр, gs — размер.
+     */
+    private void drawCheck(MatrixStack ms, float cx, float cy, float gs, int color) {
+        float t = Math.max(1.6f, gs * 0.16f); // толщина штриха
+        float ax = cx - 0.40f * gs, ay = cy + 0.02f * gs; // левый конец короткого плеча
+        float bx = cx - 0.10f * gs, by = cy + 0.30f * gs; // нижняя вершина
+        float dx = cx + 0.45f * gs, dy = cy - 0.32f * gs; // верхний конец длинного плеча
+        drawStroke(ms, ax, ay, bx, by, t, color);
+        drawStroke(ms, bx, by, dx, dy, t, color);
+    }
+
+    /** Тонкий штрих как повёрнутый прямоугольник от (x1,y1) до (x2,y2). */
+    private void drawStroke(MatrixStack ms, float x1, float y1, float x2, float y2, float t, int color) {
+        float ddx = x2 - x1, ddy = y2 - y1;
+        float len = (float) Math.sqrt(ddx * ddx + ddy * ddy) + t; // нахлёст в вершине
+        float angle = (float) Math.toDegrees(Math.atan2(ddy, ddx));
+        ms.push();
+        ms.translate(x1, y1, 0f);
+        ms.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(angle));
+        RenderUtils.drawRoundedRect(ms, -t * 0.5f, -t * 0.5f, len, t, t * 0.5f, color);
+        ms.pop();
     }
 
     private void clampScroll(int rows, float listHeight) {

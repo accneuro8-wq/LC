@@ -12,32 +12,37 @@ import fun.lumis.client.modules.impl.combat.components.RotationsSystem;
 
 /**
  * SpookyDuel — ротация для ближней дуэли (1v1), настроенная против ротационных
- * проверок Matrix AC.
+ * проверок Grim AC (ванильный Grim и форки Grim).
  *
  * <p>Ядро: критически задемпфированная пружина 2-го порядка с адаптивной жёсткостью,
  * многоточечное наведение с апериодичной сменой точки внутри хитбокса и обязательная
- * верификация пересечения луча с полигоном цели на каждом тике.
+ * верификация пересечения луча с РЕАЛЬНЫМ хитбоксом цели на каждом тике (это то, что
+ * Grim проверяет в момент удара).
  *
- * <p>Слой под конкретные эвристики Matrix:
+ * <p>Слой под конкретные эвристики Grim и его форков:
  * <ul>
- *   <li><b>GCD (Aim/Sensitivity)</b> — главная проверка Matrix: дельта углов между
- *       пакетами обязана быть целым кратным шага мыши. Квантование идёт с переносом
+ *   <li><b>GCD / AimModuloPlace (sensitivity)</b> — главная проверка Grim: дельта углов
+ *       между пакетами обязана быть целым кратным шага мыши. Квантование идёт с переносом
  *       остатка (carry), поэтому нет ни систематического сноса от усечения, ни
- *       «замёрз-на-несколько-тиков-потом-прыжок» при суб-GCD скорости — Matrix
- *       вычисляет GCD по серии дельт и ловит именно такие артефакты;</li>
- *   <li><b>Реакция (anti-snap)</b> — Matrix флагает мгновенный доворот на свежую цель.
- *       При смене цели идёт пред-наводка с микро-джиттером в течение реакционной
- *       паузы, без телепорта прицела;</li>
- *   <li><b>Недетерминированная скорость</b> — коэффициенты пружины разбрасываются на
- *       каждый сегмент, плюс мультисинус-шум: скорость и ускорение углов перестают быть
- *       постоянными (анти «constant/cinematic aim»);</li>
+ *       «замёрз-на-несколько-тиков-потом-прыжок» при суб-GCD скорости — форки Grim
+ *       реконструируют GCD по серии дельт и ловят именно такие артефакты;</li>
+ *   <li><b>Реакция (anti-snap / AimDuplicateLook)</b> — Grim флагает мгновенный доворот на
+ *       свежую цель. При смене цели идёт пред-наводка с микро-джиттером в течение
+ *       реакционной паузы, без телепорта прицела, и без повтора одинаковых углов;</li>
+ *   <li><b>Постоянная скорость/ускорение (AimA/AimB форков)</b> — коэффициенты пружины
+ *       разбрасываются на каждый сегмент, плюс мультисинус-шум: скорость и ускорение
+ *       углов перестают быть постоянными;</li>
  *   <li><b>Точка наведения не центр</b> — дрейф внутри торса ломает «aim-snap to center»;</li>
  *   <li><b>Человекоподобный потолок скорости тика</b> — нет флик-снапов.</li>
  * </ul>
  *
- * <p>Гарантия попадания: после наложения шума итоговый луч проверяется slab-тестом на
- * пересечение с предсказанным хитбоксом. Если шум вывел прицел за полигон, углы
- * итеративно подтягиваются обратно (до 6 шагов бинарного бленда).
+ * <p><b>Гарантия урона (важно при «Сфокусированной» коррекции движения):</b> при стрейфе
+ * фокус-коррекция доворачивает корпус под угол прицела, из-за чего точка глаз смещается, а
+ * упреждение по скорости может увести луч ВПЕРЁД реального хитбокса — Grim проверяет попадание
+ * по реальному (не упреждённому) хитбоксу и режет такой удар. Поэтому итоговый луч после шума
+ * проверяется slab-тестом против РЕАЛЬНОГО текущего хитбокса; если он мимо — углы итеративно
+ * подтягиваются к центру реального хитбокса (бинарный бленд), и удар всегда валиден.
+ * Упреждение используется только для направления доводки, но не нарушает легальность хита.
  */
 public class SpookyDuelRotation extends RotationsSystem implements QClient {
 
@@ -71,6 +76,9 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
     private long lastGainRoll;
     private long gainRollInterval;
 
+    // Демпфирование текущего тика (интерполируется near<->far по ошибке угла).
+    private float zeta = ZETA_NEAR;
+
     // --- Время реакции (anti-snap Matrix) ---
     private long firstSeenTime;
     private int reactionMs;
@@ -80,12 +88,16 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
     private static final float FAR_ANGLE = 35.0F;
     // Человекоподобный потолок угловой скорости одного тика.
     private static final float MAX_STEP = 34.0F;
-    // Демпфирование пружины (zeta=1 => критическое — быстрый выход без осцилляций).
-    private static final float ZETA = 1.0F;
+    // Демпфирование пружины на ближней дистанции (zeta≈1 => без осцилляций — чистое сопровождение).
+    private static final float ZETA_NEAR = 1.0F;
+    // Демпфирование на дальнем рывке (zeta<1 => лёгкий естественный перелёт-перекоррекция,
+    // которого НЕТ у aim-assist — критическая для Matrix эвристика «no-overshoot»).
+    private static final float ZETA_FAR = 0.82F;
     // Внутренний отступ точки наведения от грани коробки (в блоках).
     private static final double INNER_MARGIN = 0.09;
-    // Упреждение позиции цели на N тиков вперёд (важно против стрейфа в дуэли).
-    private static final int PREDICT_TICKS = 2;
+    // Упреждение позиции цели на N тиков вперёд (только направление доводки; легальность хита
+    // гарантируется отдельной проверкой по реальному хитбоксу). 1 тик — мягкий лид без перелёта.
+    private static final int PREDICT_TICKS = 1;
     // Базовая амплитуда углового шума (масштабируется дистанцией и угловым размером цели).
     private static final float NOISE_AMPLITUDE = 1.3F;
     // Порог, ниже которого считаем цель «на прицеле» — режим мягкого сопровождения.
@@ -101,6 +113,7 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
         repickInterval = 0;
         lastGainRoll = 0;
         gainRollInterval = 0;
+        zeta = ZETA_NEAR;
         reactionComplete = false;
         reactionMs = 0;
         firstSeenTime = 0;
@@ -214,25 +227,40 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
     }
 
     /**
-     * Шаг критически задемпфированной пружины по Yaw.
-     * Скорость климпится для предотвращения неограниченного роста, но полная динамика
-     * демпфирования сохраняется между тиками.
+     * Шаг задемпфированной пружины по Yaw. Демпфирование {@code zeta} зависит от дистанции:
+     * на дальнем рывке zeta&lt;1 => лёгкий естественный перелёт, у aim-assist отсутствующий.
+     * Скорость мягко насыщается (soft-clip) у потолка, поэтому подряд идущие дельты во время
+     * флика не залипают в одно и то же значение (Matrix: constant-rotation-speed).
      */
     private float springStepYaw(float x, float target, float omega) {
         float diff = MathHelper.wrapDegrees(target - x);
-        float accel = omega * omega * diff - 2.0F * ZETA * omega * yawVel;
-        yawVel = MathHelper.clamp(yawVel + accel, -MAX_STEP, MAX_STEP);
+        float accel = omega * omega * diff - 2.0F * zeta * omega * yawVel;
+        yawVel = softClip(yawVel + accel, MAX_STEP);
         return x + yawVel;
     }
 
     /**
-     * Шаг критически задемпфированной пружины по Pitch.
+     * Шаг задемпфированной пружины по Pitch (см. {@link #springStepYaw}).
      */
     private float springStepPitch(float x, float target, float omega) {
         float diff = target - x;
-        float accel = omega * omega * diff - 2.0F * ZETA * omega * pitchVel;
-        pitchVel = MathHelper.clamp(pitchVel + accel, -MAX_STEP, MAX_STEP);
+        float accel = omega * omega * diff - 2.0F * zeta * omega * pitchVel;
+        pitchVel = softClip(pitchVel + accel, MAX_STEP);
         return MathHelper.clamp(x + pitchVel, -89.0F, 89.0F);
+    }
+
+    /**
+     * Мягкое насыщение скорости у потолка {@code lim}: ниже 0.75·lim — без изменений,
+     * выше — гладкая компрессия tanh-подобной кривой. Убирает плоское плато {@code v==lim}
+     * (его ловит constant-rotation-speed Matrix), сохраняя человекоподобный максимум.
+     */
+    private static float softClip(float v, float lim) {
+        float knee = lim * 0.75F;
+        float a = Math.abs(v);
+        if (a <= knee) return v;
+        float over = (a - knee) / (lim - knee);          // 0..inf за коленом
+        float compressed = knee + (lim - knee) * (float) Math.tanh(over);
+        return Math.signum(v) * compressed;
     }
 
     /** Вектор направления из углов (градусы). */
@@ -310,22 +338,34 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
 
         Vec3d eye = mc.player.getEyePos();
 
-        // --- Предсказанная коробка цели (упреждение по скорости — анти-стрейф) ---
-        Box baseBox = target.getBoundingBox();
+        // --- Предсказанная коробка цели (упреждение по скорости — направление доводки) ---
+        Box realBox = target.getBoundingBox();
         Vec3d vel = targetVelocity(target);
-        Vec3d predictedCenter = getPredictedPoint(target, baseBox.getCenter());
-        Box box = baseBox.offset(predictedCenter.subtract(baseBox.getCenter()))
+        Vec3d predictedCenter = getPredictedPoint(target, realBox.getCenter());
+        Box box = realBox.offset(predictedCenter.subtract(realBox.getCenter()))
                 .offset(vel.multiply(PREDICT_TICKS));
 
         float distance = (float) eye.distanceTo(box.getCenter());
 
-        // --- Реакция (anti-snap Matrix): пред-наводка с микро-джиттером, без снапа ---
+        // --- Реакция (anti-snap Grim): пред-наводка с микро-джиттером, без снапа ---
         if (!reactionComplete) {
             long elapsed = System.currentTimeMillis() - firstSeenTime;
             if (elapsed < reactionMs) {
+                // Лёгкий дрейф В СТОРОНУ цели + микрошум: человек начинает доворот ещё
+                // до конца реакции, прицел не «замёрз» на месте (это Grim тоже ловит как
+                // не-человеческое поведение), но и не снапает.
+                Vec3d preAim = box.getCenter();
+                Vec3d preDir = preAim.subtract(eye);
+                float needYaw = (float) MathHelper.wrapDegrees(Math.toDegrees(Math.atan2(preDir.z, preDir.x)) - 90.0);
+                float needPitch = (float) -Math.toDegrees(Math.atan2(preDir.y, preDir.horizontalLength()));
+
+                float driftK = 0.04F + (float) (Math.random() * 0.03F); // 4..7% пути за тик
+                float driftY = MathHelper.wrapDegrees(needYaw - lastSentYaw) * driftK;
+                float driftP = (needPitch - lastSentPitch) * driftK;
+
                 float jitterY = ((float) Math.random() - 0.5F) * 0.22F;
                 float jitterP = ((float) Math.random() - 0.5F) * 0.14F;
-                emit(lastSentYaw + jitterY, lastSentPitch + jitterP, gcd);
+                emit(lastSentYaw + driftY + jitterY, lastSentPitch + driftP + jitterP, gcd);
                 return;
             }
             reactionComplete = true;
@@ -354,6 +394,9 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
             k = MathHelper.clamp((err - TRACK_THRESHOLD) / (FAR_ANGLE - TRACK_THRESHOLD), 0.0F, 1.0F);
         }
         float omega = MathHelper.lerp(k, gainNear, gainFar);
+        // Демпфирование тоже зависит от ошибки: дальний рывок (k→1) => zeta<1 (лёгкий перелёт,
+        // которого нет у aim-assist), сопровождение (k→0) => zeta≈1 (без осцилляций).
+        zeta = MathHelper.lerp(k, ZETA_NEAR, ZETA_FAR);
 
         // --- Шаг пружины по обеим осям ---
         currentYaw = springStepYaw(currentYaw, wantYaw, omega);
@@ -374,23 +417,34 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
         float outY = currentYaw + devYaw;
         float outP = MathHelper.clamp(currentPitch + devPitch, -89.0F, 89.0F);
 
-        // --- ГАРАНТ ПОПАДАНИЯ: проверка пересечения луча с хитбоксом ---
-        if (!rayHitsBox(eye, outY, outP, box)) {
+        // --- ГАРАНТ УРОНА: луч ОБЯЗАН пересекать РЕАЛЬНЫЙ хитбокс ---
+        // Grim валидирует попадание по реальному (не упреждённому) хитбоксу. При «Сфокусированной»
+        // коррекции движения корпус доворачивается под угол прицела, точка глаз смещается, и
+        // упреждение по скорости может увести луч за реальный хитбокс — Grim срежет такой удар.
+        // Поэтому проверяем и подтягиваем углы именно к realBox, а не к упреждённому box.
+        if (!rayHitsBox(eye, outY, outP, realBox)) {
+            // Целевые углы на центр РЕАЛЬНОГО хитбокса — гарантированно валидный хит.
+            Vec3d safeDir = realBox.getCenter().subtract(eye);
+            float safeYaw = (float) MathHelper.wrapDegrees(Math.toDegrees(Math.atan2(safeDir.z, safeDir.x)) - 90.0);
+            float safePitch = (float) MathHelper.clamp(-Math.toDegrees(Math.atan2(safeDir.y, safeDir.horizontalLength())), -89.0, 89.0);
+
             float blend = 0.5F;
+            boolean fixed = false;
             for (int i = 0; i < 6; i++) {
-                float tryY = outY + MathHelper.wrapDegrees(currentYaw - outY) * blend;
-                float tryP = MathHelper.clamp(outP + (currentPitch - outP) * blend, -89.0F, 89.0F);
-                if (rayHitsBox(eye, tryY, tryP, box)) {
+                float tryY = outY + MathHelper.wrapDegrees(safeYaw - outY) * blend;
+                float tryP = MathHelper.clamp(outP + (safePitch - outP) * blend, -89.0F, 89.0F);
+                if (rayHitsBox(eye, tryY, tryP, realBox)) {
                     outY = tryY;
                     outP = tryP;
+                    fixed = true;
                     break;
                 }
                 blend = Math.min(1.0F, blend + 0.18F);
-                if (i == 5) {
-                    // Полный возврат к чистой ротации — заведомо внутри хитбокса
-                    outY = currentYaw;
-                    outP = MathHelper.clamp(currentPitch, -89.0F, 89.0F);
-                }
+            }
+            if (!fixed) {
+                // Полный возврат на центр реального хитбокса — заведомо легальный хит.
+                outY = safeYaw;
+                outP = safePitch;
             }
         }
 
@@ -402,7 +456,7 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
      * накапливается с переносом ({@code carry}) и округляется к ближайшему целому числу шагов
      * мыши {@code gcd} — итоговая дельта всегда кратна gcd, без систематического сноса от
      * усечения и без суб-GCD «заморозки-с-прыжком». Именно серию таких дельт анализирует
-     * проверка GCD/Sensitivity в Matrix.
+     * проверка GCD/Sensitivity в Grim и его форках.
      */
     private void emit(float yaw, float pitch, float gcd) {
         float outP = MathHelper.clamp(pitch, -89.0F, 89.0F);

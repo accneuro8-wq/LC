@@ -59,10 +59,13 @@ import fun.lumis.api.utils.rotate.RotationUtils;
 import fun.lumis.client.modules.Module;
 import fun.lumis.client.modules.impl.combat.components.RotationsSystem;
 import fun.lumis.client.modules.impl.combat.components.interpolation.BestPoint;
-import fun.lumis.client.modules.impl.combat.components.rotations.SlothRotation;
+import fun.lumis.client.modules.impl.combat.components.rotations.FunSkyRotation;
+import fun.lumis.client.modules.impl.combat.components.rotations.GrimRotation;
+import fun.lumis.client.modules.impl.combat.components.rotations.HvhRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.ReallyWorldRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.PolarRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.SpookyDuelRotation;
+import fun.lumis.client.modules.impl.combat.components.rotations.VulcanRotation;
 import fun.lumis.client.modules.impl.movement.Sprint;
 import fun.lumis.client.modules.impl.player.AutoEat;
 import fun.lumis.client.modules.settings.implement.BooleanSetting;
@@ -80,7 +83,7 @@ import static net.minecraft.util.math.MathHelper.wrapDegrees;
 public class Aura extends Module {
     public static Aura INSTANCE = new Aura();
 
-    public final ModeSetting rotationType = new ModeSetting("Ротация", "Sloth", "Sloth", "ReallyWorld", "Polar", "SpookyDuel");
+    public final ModeSetting rotationType = new ModeSetting("Ротация", "HVH", "HVH", "ReallyWorld", "FunTime не обходит", "SpookyDuel", "FunSky под Grim", "Grim", "Vulcan");
 
     private final ListSetting targets = new ListSetting("Таргеты",
             new BooleanSetting("Игроки", true),
@@ -116,10 +119,13 @@ public class Aura extends Module {
     private final TimerUtils attackTimer = new TimerUtils();
     private final BooleanSetting rwWallBypass = new BooleanSetting("Обход рв стен", false);
     private final BooleanSetting rwWallLookDown = new BooleanSetting("Смотреть вниз", false).visible(rwWallBypass::isState);
-    private final SlothRotation slothRotation = new SlothRotation();
+    private final HvhRotation hvhRotation = new HvhRotation();
     private final ReallyWorldRotation reallyWorldRotation = new ReallyWorldRotation();
     private final PolarRotation polarRotation = new PolarRotation();
     private final SpookyDuelRotation spookyDuelRotation = new SpookyDuelRotation();
+    private final FunSkyRotation funSkyRotation = new FunSkyRotation();
+    private final GrimRotation grimRotation = new GrimRotation();
+    private final VulcanRotation vulcanRotation = new VulcanRotation();
 
     private final TimerUtils backTimer = new TimerUtils();
 
@@ -358,7 +364,7 @@ public class Aura extends Module {
             backTimer.reset();
             adjPitch = 0;
             adjYaw = 0;
-            slothRotation.reset();
+            hvhRotation.reset();
             reallyWorldRotation.reset();
             dataSystem.resetState();
             lastDataTarget = null;
@@ -406,7 +412,7 @@ public class Aura extends Module {
             return;
         }
 
-        if (rotationType.is("Polar")) {
+        if (rotationType.is("FunTime не обходит")) {
             polarRotation.updateRotations(target);
             return;
         }
@@ -416,7 +422,22 @@ public class Aura extends Module {
             return;
         }
 
-        slothRotation.updateRotations(target);
+        if (rotationType.is("FunSky под Grim")) {
+            funSkyRotation.updateRotations(target);
+            return;
+        }
+
+        if (rotationType.is("Grim")) {
+            grimRotation.updateRotations(target);
+            return;
+        }
+
+        if (rotationType.is("Vulcan")) {
+            vulcanRotation.updateRotations(target);
+            return;
+        }
+
+        hvhRotation.updateRotations(target);
     }
 
     private void updateSnapRotation(LivingEntity target) {
@@ -707,10 +728,13 @@ public class Aura extends Module {
             restoreShieldBlocking(blockedShieldHand);
         }
 
-        if (rotationType.is("Sloth")) slothRotation.onAttack();
+        if (rotationType.is("HVH")) hvhRotation.onAttack();
         if (rotationType.is("ReallyWorld")) reallyWorldRotation.onAttack();
-        if (rotationType.is("Polar")) polarRotation.onAttack();
+        if (rotationType.is("FunTime не обходит")) polarRotation.onAttack();
         if (rotationType.is("SpookyDuel")) spookyDuelRotation.onAttack();
+        if (rotationType.is("FunSky под Grim")) funSkyRotation.onAttack();
+        if (rotationType.is("Grim")) grimRotation.onAttack();
+        if (rotationType.is("Vulcan")) vulcanRotation.onAttack();
 
         long cooldown = 467L;
 
@@ -979,7 +1003,7 @@ public class Aura extends Module {
         super.onDisable();
         if (target != null) backTimer.reset();
         target = null;
-        slothRotation.reset();
+        hvhRotation.reset();
         reallyWorldRotation.reset();
         dataSystem.resetState();
         lastDataTarget = null;
@@ -993,7 +1017,7 @@ public class Aura extends Module {
     @Override
     public void onEnable() {
         super.onEnable();
-        slothRotation.reset();
+        hvhRotation.reset();
         reallyWorldRotation.reset();
         dataSystem.resetState();
         lastDataTarget = null;
