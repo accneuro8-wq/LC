@@ -70,6 +70,11 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
     // --- Угловой микрошум (мультисинус) ---
     private float noiseAngle;
 
+    // --- Угловая скорость цели (feed-forward против кругового стрейфа в дуэли) ---
+    private float lastWantYaw;
+    private float lastWantPitch;
+    private boolean hasWant;
+
     // --- Недетерминированный разброс коэффициентов пружины на сегмент ---
     private float gainFar;
     private float gainNear;
@@ -96,17 +101,37 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
     // Внутренний отступ точки наведения от грани коробки (в блоках).
     private static final double INNER_MARGIN = 0.09;
     // Упреждение позиции цели на N тиков вперёд (только направление доводки; легальность хита
-    // гарантируется отдельной проверкой по реальному хитбоксу). 1 тик — мягкий лид без перелёта.
-    private static final int PREDICT_TICKS = 1;
+    // гарантируется отдельной проверкой по реальному хитбоксу). На дальней дистанции лид
+    // помогает догнать цель, в упор — вреден (луч уходит за реальный хитбокс), поэтому
+    // фактический лид масштабируется дистанцией в getAdaptiveLead().
+    private static final float PREDICT_TICKS = 1.0F;
+    // Дистанция (блоки), ниже которой упреждение по скорости полностью отключается:
+    // в упор скорость цели уводит луч за реальный хитбокс быстрее, чем помогает.
+    private static final float NO_LEAD_DISTANCE = 2.2F;
+    // Дистанция, с которой упреждение выходит на полную силу.
+    private static final float FULL_LEAD_DISTANCE = 4.0F;
     // Базовая амплитуда углового шума (масштабируется дистанцией и угловым размером цели).
     private static final float NOISE_AMPLITUDE = 1.3F;
     // Порог, ниже которого считаем цель «на прицеле» — режим мягкого сопровождения.
     private static final float TRACK_THRESHOLD = 5.0F;
+    // Минимальная жёсткость пружины в режиме сопровождения. При круговом стрейфе в дуэли угловая
+    // ошибка мала (k→0 => omega→0), но цель быстро уходит вбок — нулевая жёсткость заставляла бы
+    // g(rayHitsBox) постоянно «спасать» прицел рывком к центру. Ненулевой пол держит мягкое,
+    // непрерывное сопровождение без снапов.
+    private static final float TRACK_OMEGA = 0.14F;
+    // Доля угловой скорости цели, добавляемая как feed-forward к целевому углу пружины.
+    // Компенсирует фазовое запаздывание трекинга при круговом стрейфе (constant lag — то,
+    // что даёт промахи по джукам), не создавая постоянной угловой скорости (шум её ломает).
+    private static final float FF_GAIN = 0.6F;
+    // Потолок feed-forward вклада за тик (градусы) — чтобы рывок цели не давал снап.
+    private static final float FF_MAX = 6.0F;
 
     public void reset() {
         trackedTarget = null;
         aimOffset = Vec3d.ZERO;
         noiseAngle = 0.0F;
+        hasWant = false;
+        lastWantYaw = lastWantPitch = 0.0F;
         yawVel = pitchVel = 0.0F;
         yawCarry = pitchCarry = 0.0F;
         lastRepick = 0;
@@ -175,6 +200,17 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
                 target.getY() - target.prevY,
                 target.getZ() - target.prevZ
         );
+    }
+
+    /**
+     * Множитель упреждения по дистанции: 0 в упор (&le; {@link #NO_LEAD_DISTANCE}), плавно до 1
+     * на средней дистанции (&ge; {@link #FULL_LEAD_DISTANCE}). В упор лид по скорости уводит луч
+     * за реальный хитбокс быстрее, чем помогает; на дистанции — нужен, чтобы догнать стрейф.
+     */
+    private float getAdaptiveLead(float distance) {
+        if (distance <= NO_LEAD_DISTANCE) return 0.0F;
+        if (distance >= FULL_LEAD_DISTANCE) return 1.0F;
+        return (distance - NO_LEAD_DISTANCE) / (FULL_LEAD_DISTANCE - NO_LEAD_DISTANCE);
     }
 
     /**
@@ -324,6 +360,7 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
             yawVel = pitchVel = 0.0F;
             yawCarry = pitchCarry = 0.0F;
             noiseAngle = (float) (Math.random() * Math.PI * 2);
+            hasWant = false;
             repickAimPoint(target.getBoundingBox());
             rollGain();
 
@@ -339,11 +376,15 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
         Vec3d eye = mc.player.getEyePos();
 
         // --- Предсказанная коробка цели (упреждение по скорости — направление доводки) ---
+        // Лид масштабируется дистанцией: в упор отключён (иначе скорость цели уводит луч за
+        // реальный хитбокс), на средней/дальней — полный (помогает догнать стрейфящую цель).
         Box realBox = target.getBoundingBox();
         Vec3d vel = targetVelocity(target);
         Vec3d predictedCenter = getPredictedPoint(target, realBox.getCenter());
+        float rawDist = (float) eye.distanceTo(realBox.getCenter());
+        float lead = getAdaptiveLead(rawDist);
         Box box = realBox.offset(predictedCenter.subtract(realBox.getCenter()))
-                .offset(vel.multiply(PREDICT_TICKS));
+                .offset(vel.multiply(PREDICT_TICKS * lead));
 
         float distance = (float) eye.distanceTo(box.getCenter());
 
@@ -382,6 +423,21 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
         float wantYaw = (float) MathHelper.wrapDegrees(Math.toDegrees(Math.atan2(dir.z, dir.x)) - 90.0);
         float wantPitch = (float) -Math.toDegrees(Math.atan2(dir.y, dir.horizontalLength()));
 
+        // --- Feed-forward по угловой скорости цели (анти-lag при круговом стрейфе) ---
+        // Человек, ведущий стрейфящего противника, доворачивает с упреждением фазы, а не строго
+        // по текущему положению. Добавляем долю наблюдаемой угловой скорости цели к целевому углу
+        // пружины: трекинг перестаёт систематически отставать (constant-lag даёт промахи по джукам),
+        // при этом вклад ограничен FF_MAX и зашумлён — постоянной угловой скорости не возникает.
+        if (hasWant) {
+            float ffYaw = MathHelper.clamp(MathHelper.wrapDegrees(wantYaw - lastWantYaw) * FF_GAIN, -FF_MAX, FF_MAX);
+            float ffPitch = MathHelper.clamp((wantPitch - lastWantPitch) * FF_GAIN, -FF_MAX, FF_MAX);
+            wantYaw = MathHelper.wrapDegrees(wantYaw + ffYaw);
+            wantPitch += ffPitch;
+        }
+        lastWantYaw = wantYaw;
+        lastWantPitch = wantPitch;
+        hasWant = true;
+
         // --- Адаптивная жёсткость пружины ---
         float errYaw = Math.abs(MathHelper.wrapDegrees(wantYaw - currentYaw));
         float errPitch = Math.abs(wantPitch - currentPitch);
@@ -393,7 +449,10 @@ public class SpookyDuelRotation extends RotationsSystem implements QClient {
         } else {
             k = MathHelper.clamp((err - TRACK_THRESHOLD) / (FAR_ANGLE - TRACK_THRESHOLD), 0.0F, 1.0F);
         }
-        float omega = MathHelper.lerp(k, gainNear, gainFar);
+        // Пол жёсткости (TRACK_OMEGA) в режиме сопровождения: при k→0 пружина не «отпускает»
+        // цель, а продолжает мягко её вести — иначе круговой стрейф вынуждал бы rayHitsBox
+        // постоянно спасать прицел рывком к центру.
+        float omega = MathHelper.lerp(k, Math.max(gainNear, TRACK_OMEGA), gainFar);
         // Демпфирование тоже зависит от ошибки: дальний рывок (k→1) => zeta<1 (лёгкий перелёт,
         // которого нет у aim-assist), сопровождение (k→0) => zeta≈1 (без осцилляций).
         zeta = MathHelper.lerp(k, ZETA_NEAR, ZETA_FAR);

@@ -63,7 +63,6 @@ import fun.lumis.client.modules.impl.combat.components.rotations.FunSkyRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.GrimRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.HvhRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.ReallyWorldRotation;
-import fun.lumis.client.modules.impl.combat.components.rotations.PolarRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.SpookyDuelRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.VulcanRotation;
 import fun.lumis.client.modules.impl.movement.Sprint;
@@ -83,7 +82,7 @@ import static net.minecraft.util.math.MathHelper.wrapDegrees;
 public class Aura extends Module {
     public static Aura INSTANCE = new Aura();
 
-    public final ModeSetting rotationType = new ModeSetting("Ротация", "HVH", "HVH", "ReallyWorld", "FunTime не обходит", "SpookyDuel", "FunSky под Grim", "Grim", "Vulcan");
+    public final ModeSetting rotationType = new ModeSetting("Ротация", "HVH", "HVH", "ReallyWorld", "SpookyTime Duel", "FunSky", "Grim", "Vulcan");
 
     private final ListSetting targets = new ListSetting("Таргеты",
             new BooleanSetting("Игроки", true),
@@ -121,7 +120,6 @@ public class Aura extends Module {
     private final BooleanSetting rwWallLookDown = new BooleanSetting("Смотреть вниз", false).visible(rwWallBypass::isState);
     private final HvhRotation hvhRotation = new HvhRotation();
     private final ReallyWorldRotation reallyWorldRotation = new ReallyWorldRotation();
-    private final PolarRotation polarRotation = new PolarRotation();
     private final SpookyDuelRotation spookyDuelRotation = new SpookyDuelRotation();
     private final FunSkyRotation funSkyRotation = new FunSkyRotation();
     private final GrimRotation grimRotation = new GrimRotation();
@@ -412,17 +410,12 @@ public class Aura extends Module {
             return;
         }
 
-        if (rotationType.is("FunTime не обходит")) {
-            polarRotation.updateRotations(target);
-            return;
-        }
-
-        if (rotationType.is("SpookyDuel")) {
+        if (rotationType.is("SpookyTime Duel")) {
             spookyDuelRotation.updateRotations(target);
             return;
         }
 
-        if (rotationType.is("FunSky под Grim")) {
+        if (rotationType.is("FunSky")) {
             funSkyRotation.updateRotations(target);
             return;
         }
@@ -730,9 +723,8 @@ public class Aura extends Module {
 
         if (rotationType.is("HVH")) hvhRotation.onAttack();
         if (rotationType.is("ReallyWorld")) reallyWorldRotation.onAttack();
-        if (rotationType.is("FunTime не обходит")) polarRotation.onAttack();
-        if (rotationType.is("SpookyDuel")) spookyDuelRotation.onAttack();
-        if (rotationType.is("FunSky под Grim")) funSkyRotation.onAttack();
+        if (rotationType.is("SpookyTime Duel")) spookyDuelRotation.onAttack();
+        if (rotationType.is("FunSky")) funSkyRotation.onAttack();
         if (rotationType.is("Grim")) grimRotation.onAttack();
         if (rotationType.is("Vulcan")) vulcanRotation.onAttack();
 
