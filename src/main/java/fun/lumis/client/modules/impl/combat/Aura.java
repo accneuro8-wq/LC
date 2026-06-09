@@ -64,6 +64,7 @@ import fun.lumis.client.modules.impl.combat.components.rotations.GrimRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.HvhRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.ReallyWorldRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.SpookyDuelRotation;
+import fun.lumis.client.modules.impl.combat.components.rotations.VCDuelRotation;
 import fun.lumis.client.modules.impl.combat.components.rotations.VulcanRotation;
 import fun.lumis.client.modules.impl.movement.Sprint;
 import fun.lumis.client.modules.impl.player.AutoEat;
@@ -82,7 +83,7 @@ import static net.minecraft.util.math.MathHelper.wrapDegrees;
 public class Aura extends Module {
     public static Aura INSTANCE = new Aura();
 
-    public final ModeSetting rotationType = new ModeSetting("Ротация", "HVH", "HVH", "ReallyWorld", "SpookyTime Duel", "FunSky", "Grim", "Vulcan");
+    public final ModeSetting rotationType = new ModeSetting("Ротация", "HVH", "HVH", "ReallyWorld", "SpookyTime Duel", "FunSky", "Grim", "Vulcan", "VC Duel");
 
     private final ListSetting targets = new ListSetting("Таргеты",
             new BooleanSetting("Игроки", true),
@@ -124,6 +125,7 @@ public class Aura extends Module {
     private final FunSkyRotation funSkyRotation = new FunSkyRotation();
     private final GrimRotation grimRotation = new GrimRotation();
     private final VulcanRotation vulcanRotation = new VulcanRotation();
+    private final VCDuelRotation vcDuelRotation = new VCDuelRotation();
 
     private final TimerUtils backTimer = new TimerUtils();
 
@@ -363,6 +365,7 @@ public class Aura extends Module {
             adjPitch = 0;
             adjYaw = 0;
             hvhRotation.reset();
+        vcDuelRotation.reset();
             reallyWorldRotation.reset();
             dataSystem.resetState();
             lastDataTarget = null;
@@ -422,6 +425,11 @@ public class Aura extends Module {
 
         if (rotationType.is("Grim")) {
             grimRotation.updateRotations(target);
+            return;
+        }
+
+        if (rotationType.is("VC Duel")) {
+            vcDuelRotation.updateRotations(target);
             return;
         }
 
@@ -727,6 +735,7 @@ public class Aura extends Module {
         if (rotationType.is("FunSky")) funSkyRotation.onAttack();
         if (rotationType.is("Grim")) grimRotation.onAttack();
         if (rotationType.is("Vulcan")) vulcanRotation.onAttack();
+        if (rotationType.is("VC Duel")) vcDuelRotation.onAttack();
 
         long cooldown = 467L;
 
@@ -996,6 +1005,7 @@ public class Aura extends Module {
         if (target != null) backTimer.reset();
         target = null;
         hvhRotation.reset();
+        vcDuelRotation.reset();
         reallyWorldRotation.reset();
         dataSystem.resetState();
         lastDataTarget = null;
@@ -1010,6 +1020,7 @@ public class Aura extends Module {
     public void onEnable() {
         super.onEnable();
         hvhRotation.reset();
+        vcDuelRotation.reset();
         reallyWorldRotation.reset();
         dataSystem.resetState();
         lastDataTarget = null;
