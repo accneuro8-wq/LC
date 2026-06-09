@@ -5,7 +5,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
 
 import fun.lumis.api.QClient;
 import fun.lumis.api.events.EventLink;
@@ -27,7 +26,6 @@ public class FakePlayer extends Module implements QClient {
     private final FloatSetting distance = new FloatSetting("Дистанция", 3.0f, 1.0f, 10.0f, 0.1f);
     private final FloatSetting speed = new FloatSetting("Скорость", 1.0f, 0.1f, 5.0f, 0.1f);
     private final BooleanSetting copyInventory = new BooleanSetting("Копировать инвентарь", true);
-    private final BooleanSetting showInTab = new BooleanSetting("Показывать в табе", false);
 
     private OtherClientPlayerEntity fakePlayer;
     private double angle = 0.0;
@@ -35,7 +33,7 @@ public class FakePlayer extends Module implements QClient {
 
     public FakePlayer() {
         super("FakePlayer", "Спавнит фейкового игрока для тренировки", ModuleCategory.COMBAT);
-        addSettings(mode, distance, speed, copyInventory, showInTab);
+        addSettings(mode, distance, speed, copyInventory);
     }
 
     @EventLink
@@ -52,7 +50,8 @@ public class FakePlayer extends Module implements QClient {
     private void spawnFakePlayer() {
         if (mc.player == null || mc.world == null) return;
 
-        Vec3d spawnPos = mc.player.getPos().add(0, 0, distance.getValue());
+        double dist = distance.getValue().doubleValue();
+        Vec3d spawnPos = mc.player.getPos().add(0, 0, dist);
         
         fakePlayer = new OtherClientPlayerEntity(
                 mc.world,
@@ -73,13 +72,12 @@ public class FakePlayer extends Module implements QClient {
         fakePlayer.setYaw(0);
         fakePlayer.setPitch(0);
         fakePlayer.setHealth(20.0f);
-        fakePlayer.setGameMode(GameMode.SURVIVAL);
 
         if (copyInventory.isState() && mc.player != null) {
             fakePlayer.getInventory().clone(mc.player.getInventory());
         }
 
-        mc.world.addEntity(fakePlayer.getId(), fakePlayer);
+        mc.world.addEntity(fakePlayer);
         centerPos = mc.player.getPos();
     }
 
@@ -87,8 +85,8 @@ public class FakePlayer extends Module implements QClient {
         if (fakePlayer == null || mc.player == null) return;
 
         Vec3d targetPos;
-        double dist = distance.getValue();
-        double spd = speed.getValue() * 0.05;
+        double dist = distance.getValue().doubleValue();
+        double spd = speed.getValue().doubleValue() * 0.05;
 
         switch (mode.getCurrent()) {
             case "Стоит" -> {
@@ -139,7 +137,7 @@ public class FakePlayer extends Module implements QClient {
     public void onDisable() {
         super.onDisable();
         if (fakePlayer != null && mc.world != null) {
-            mc.world.removeEntity(fakePlayer.getId(), Entity.RemovalReason.DISCARDED);
+            fakePlayer.remove(Entity.RemovalReason.DISCARDED);
             fakePlayer = null;
         }
         angle = 0.0;
