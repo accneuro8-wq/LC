@@ -22,9 +22,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build with obfuscation
-        run: ./gradlew clean build -Pobfuscate
-        env:
-          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
+        run: ./gradlew clean build -Pobfuscate -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" --no-daemon
 
       - name: Upload built mod
         uses: actions/upload-artifact@v4
