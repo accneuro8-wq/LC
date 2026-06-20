@@ -71,6 +71,7 @@ public class ModuleClass extends GlobalObject<Module> implements ModuleRewords {
                 itemRelease,
                 itemScroller,
                 jumpCircle,
+                legitAura,
                 killEffect,
                 kTLeave,
                 leavetracker,

@@ -62,6 +62,7 @@ public interface ModuleRewords {
     ItemRelease itemRelease = ItemRelease.INSTANCE;
     JumpCircle jumpCircle = JumpCircle.INSTANCE;
     KTLeave kTLeave = KTLeave.INSTANCE;
+    LegitAura legitAura = LegitAura.INSTANCE;
     LineGlyphes lineGlyphes = LineGlyphes.INSTANCE;
     LockSlot lockSlot = LockSlot.INSTANCE;
     NoClip noClip = NoClip.INSTANCE;
