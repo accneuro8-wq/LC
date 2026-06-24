@@ -1,140 +1,102 @@
-
-
-
 plugins {
-	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
-	id 'maven-publish'
+    id 'fabric-loom' version '1.9.2'
+    id 'maven-publish'
+    id("org.jetbrains.kotlin.jvm") version "2.1.20"
 }
-
-import lumis.obf.Obfuscator
 
 version = project.mod_version
 group = project.maven_group
-
-configurations {
-	shade
-}
-
-def baritoneJar = file("libs/baritone-standalone-fabric-1.13.1.jar")
-def baritoneApiJar = file("libs/baritone-api-fabric-1.13.1.jar")
-def netherPathfinderJar = file("libs/nether-pathfinder-1.4.1.jar")
-
 base {
-	archivesName = project.archives_base_name
+    archivesName = project.archives_base_name
 }
 
 repositories {
-}
-
-dependencies {
-	    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-	    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-		modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-		modLocalRuntime files(baritoneJar)
-		implementation files(netherPathfinderJar)
-		shade files(netherPathfinderJar)
-		implementation files("libs/jna-5.15.0.jar")
-		shade files("libs/jna-5.15.0.jar")
-	    compileOnly 'org.projectlombok:lombok:1.18.44'
-	    annotationProcessor 'org.projectlombok:lombok:1.18.44'
-}
-
-processResources {
-	inputs.property "version", project.version
-
-	filesMatching("fabric.mod.json") {
-		expand "version": inputs.properties.version
-	}
-}
-
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
-	it.options.encoding = "UTF-8"
+    maven {
+        name = "meteor-maven-snapshots"
+        url = "https://maven.meteordev.org/snapshots"
+    }
+    mavenCentral()
 }
 
 loom {
-	accessWidenerPath = file("src/main/resources/lumis.accesswidener")
+    accessWidenerPath = file("src/main/resources/accesswidener")
+    
+    mixin {
+        defaultRefmapName = "lumis-refmap.json"
+        useLegacyMixinAp = true
+    }
 }
 
-// Final built mod jar name -> "LumisBeta 1.0.jar"
-remapJar {
-	archiveFileName = "LumisBeta 1.0.jar"
+// Force refmap generation
+tasks.withType(net.fabricmc.loom.task.RemapJarTask).configureEach {
+    // Ensure mixin refmap is included
 }
 
-// Obfuscate the NAMED (yarn-mapped) jar produced by the `jar` task, BEFORE loom's remapJar
-// consumes it. This is what Obfuscator is designed for: the override-detection classpath
-// (compileClasspath) is yarn-named, so it must match the jar being processed — which is only
-// true pre-remap. Running it on the post-remap (intermediary-named) jar makes every override
-// of a Minecraft method (render/init/tick/...) unresolvable, so they get renamed and the
-// runtime never dispatches to them (broken screens/renderers, crash before the main menu).
-//
-// Enable with -Pobfuscate (kept off for dev builds / runClient so names stay debuggable).
-if (project.hasProperty("obfuscate")) {
-	def hierarchyCp = files(
-		configurations.compileClasspath,
-		baritoneJar,
-		netherPathfinderJar,
-		file("libs/jna-5.15.0.jar")
-	)
-	jar {
-		// The obfuscation runs in doLast and mutates the jar after Gradle's up-to-date check,
-		// so force the task to always re-run when obfuscating (otherwise a cached jar leaves a
-		// stale, un-obfuscated artifact that remapJar would then remap unchanged).
-		outputs.upToDateWhen { false }
-		doLast {
-			def out = archiveFile.get().asFile
-			def seed = project.hasProperty("obfSeed") ? (project.obfSeed as long) : 1L
-			logger.lifecycle("[obf] obfuscating ${out.name} (pre-remap, named mappings)")
-			new Obfuscator(seed).run(out, out, new ArrayList<File>(hierarchyCp.files))
-		}
-	}
+configurations {
+    libImpl
+    modImpl
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    include(modImplementation('io.netty:netty-handler-proxy:4.1.82.Final'))
+    include(modImplementation('io.netty:netty-codec-socks:4.1.82.Final'))
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '3.1.8'
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    modCompileOnly "meteordevelopment:baritone:1.21.4-SNAPSHOT"
+    libImpl fileTree(dir: 'libs', include: ['*.jar'])
+    libImpl("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
+    implementation 'com.google.code.gson:gson:2.10.1'
+    modImplementation 'org.java-websocket:Java-WebSocket:1.5.6'
+    modImplementation 'com.github.oshi:oshi-core:6.4.0'
+    configurations.libImpl.dependencies.each { implementation(it) }
+    configurations.modImpl.dependencies.each { modImplementation(it) include(it) }
+}
+
+processResources {
+}
+
+def targetJavaVersion = 21
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        it.options.release.set(targetJavaVersion)
+    }
 }
 
 java {
-	withSourcesJar()
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+    withSourcesJar()
+}
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+compileKotlin {
 }
 
 jar {
-	inputs.property "archivesName", project.base.archivesName
-	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-	doFirst {
-		if (!baritoneJar.exists()) {
-			throw new GradleException("Missing nested Baritone jar: ${baritoneJar}")
-		}
-		if (!netherPathfinderJar.exists()) {
-			throw new GradleException("Missing nether-pathfinder jar: ${netherPathfinderJar}")
-		}
-	}
-
-	from {
-		configurations.shade.collect { dependency ->
-			dependency.isDirectory() ? dependency : zipTree(dependency)
-		}
-	}
-
-	from(baritoneJar) {
-		into "META-INF/jars"
-	}
-
-	exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
-
-	from("LICENSE") {
-		rename { "${it}_${inputs.properties.archivesName}"}
-	}
+    from("LICENSE") {
+        rename { "${it}_${project.archivesBaseName}"}
+    }
+    from {
+        configurations.libImpl.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    from("build/classes/java/main") {
+        include "lumis-refmap.json"
+    }
+    duplicatesStrategy(DuplicatesStrategy.EXCLUDE)
 }
 
 publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = project.archives_base_name
-			from components.java
-		}
-	}
-
-	repositories {
-	}
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {}
 }
