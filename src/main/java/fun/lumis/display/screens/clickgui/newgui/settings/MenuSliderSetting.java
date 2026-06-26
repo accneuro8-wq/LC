@@ -43,7 +43,7 @@ public class MenuSliderSetting extends AbstractMenuSetting {
         float sliderWidth = setting.getDescription() == null || setting.getDescription().isEmpty() 
                 ? moduleWidth - 20 : moduleWidth / 2.8f;
         float sliderX = x + moduleWidth - padding - 4 - sliderWidth;
-        float sliderY = settingY + ((setting.getDescription()==null||setting.getDescription().isEmpty()) ? 12 : 19);
+        float sliderY = settingY + ((setting.getDescription()==null||setting.getDescription().isEmpty()) ? 16 : 24);
 
         // Value text
         String valueText = setting.isInteger() 
@@ -81,7 +81,7 @@ public class MenuSliderSetting extends AbstractMenuSetting {
 
         // Description
         if (setting.getDescription() != null && !setting.getDescription().isEmpty()) {
-            float descY = settingY + 8;
+            float descY = settingY + 9;
             MsdfFonts.drawRegular(matrix, setting.getDescription(), x + padding + 10, descY, textSize - 1, descriptionColor);
         }
 
@@ -124,7 +124,7 @@ public class MenuSliderSetting extends AbstractMenuSetting {
     @Override public float getWidth() { return 0; }
     @Override public float getHeight() {
         boolean hasDesc = setting.getDescription() != null && !setting.getDescription().isEmpty();
-        return hasDesc ? 25 : 14;
+        return hasDesc ? 32 : 22;
     }
     @Override public boolean isVisible() { return setting.isVisible(); }
 }
