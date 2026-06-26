@@ -60,7 +60,7 @@ public class DropdownMenuScreen extends Screen {
         float startX = (this.width - totalWidth) / 2f;
         float startY = (this.height - DropdownPanel.HEIGHT) / 2f - 10f;
 
-        themePanel = new ThemePanel(startX - PANEL_GAP - ThemePanel.WIDTH, startY);
+        themePanel = new ThemePanel(startX + totalWidth + PANEL_GAP, startY);
 
         String filter = searchText.toLowerCase().trim();
         int column = 0;
@@ -100,7 +100,7 @@ public class DropdownMenuScreen extends Screen {
             return;
         }
 
-        // Theme picker on the left leads the cascade.
+        // Customize panel (right side) leads the cascade.
         if (themePanel != null) {
             float tStagger = closing ? 0.07f * Math.max(1, panels.size()) : 0f;
             float tSpan = 1f - tStagger;
@@ -149,6 +149,7 @@ public class DropdownMenuScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (themePanel != null) themePanel.mouseReleased(mouseX, mouseY, button);
         for (DropdownPanel panel : panels) {
             panel.mouseReleased(mouseX, mouseY, button);
         }
