@@ -5,6 +5,7 @@ import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
 import fun.lumis.display.screens.clickgui.newgui.theme.ThemeManager;
 import fun.lumis.display.screens.clickgui.newgui.utils.MsdfFonts;
 import fun.lumis.features.module.ModuleCategory;
+import fun.lumis.utils.display.font.Fonts;
 import fun.lumis.utils.display.shape.ShapeProperties;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
@@ -15,17 +16,15 @@ import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
 /**
  * A single FIXED category panel for the Minced-style dropdown ClickGui.
- * Panels cannot be moved or collapsed: the header just shows the category
- * name, and the module list is always visible. Modules are rendered with the
- * shared {@link AbstractMenuElement} so toggles, keybinds and inline settings
- * keep working.
+ * Panels cannot be moved or collapsed: header shows the category icon + name,
+ * and the module list is always visible. Modules are rendered with the shared
+ * {@link AbstractMenuElement} so toggles, keybinds and inline settings work.
  */
 public class DropdownPanel {
-    public static final float WIDTH = 132f;
-    private static final float HEADER_H = 22f;
-    private static final float PADDING = 8f;
-    private static final float GAP = 6f;
-    private static final float TEXT_SIZE = 9.5f;
+    public static final float WIDTH = 150f;
+    public static final float HEADER_H = 26f;
+    private static final float PADDING = 10f;
+    private static final float GAP = 5f;
 
     private final ModuleCategory category;
     private final List<AbstractMenuElement> modules;
@@ -41,17 +40,35 @@ public class DropdownPanel {
         this.y = y;
     }
 
+    private String categoryIcon() {
+        return switch (category) {
+            case COMBAT -> "b";
+            case MOVEMENT -> "c";
+            case RENDER -> "d";
+            case PLAYER -> "e";
+            case MISC -> "f";
+            default -> "F";
+        };
+    }
+
     public void render(DrawContext ctx, float mouseX, float mouseY, float alpha) {
         MatrixStack matrix = ctx.getMatrices();
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
 
         // Header bar
-        int headerColor = Theme.applyAlpha(theme.getColorInt(), alpha);
-        blur.render(ShapeProperties.create(matrix, x, y, WIDTH, HEADER_H).round(6).color(headerColor).build());
+        int headerColor = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
+        blur.render(ShapeProperties.create(matrix, x, y, WIDTH, HEADER_H).round(8).color(headerColor).build());
 
-        int textColor = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
-        MsdfFonts.drawSemibold(matrix, category.getReadableName(), x + PADDING,
-                y + (HEADER_H - TEXT_SIZE) / 2f, TEXT_SIZE, textColor);
+        int textColor = Theme.applyAlpha(theme.getColorInt(), alpha);
+
+        // Category icon + name
+        float iconSize = 14f;
+        float iconY = y + (HEADER_H - iconSize) / 2f + 1f;
+        Fonts.getSize((int) iconSize, Fonts.Type.ICONSCATEGORY)
+                .drawString(matrix, categoryIcon(), x + PADDING, iconY, textColor);
+
+        float nameX = x + PADDING + iconSize + 6f;
+        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, y, 10f, textColor);
 
         // Module list (always shown)
         float moduleY = y + HEADER_H + GAP;

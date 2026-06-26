@@ -6,7 +6,6 @@ import fun.lumis.display.screens.clickgui.newgui.animation.Easing;
 import fun.lumis.display.screens.clickgui.newgui.settings.*;
 import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
 import fun.lumis.display.screens.clickgui.newgui.theme.ThemeManager;
-import fun.lumis.display.screens.clickgui.newgui.utils.MathUtil;
 import fun.lumis.display.screens.clickgui.newgui.utils.Rect;
 import fun.lumis.features.module.Module;
 import fun.lumis.features.module.ModuleCategory;
@@ -29,19 +28,14 @@ public class MenuModuleElement extends AbstractMenuElement {
     private final Module module;
     private final List<AbstractMenuSetting> settings = new ArrayList<>();
     private final Animation animation;
-    private final Animation animationPosition;
-    private final Animation animationY;
     private Rect bounds;
-    private Rect boundsBind;
+    private Rect boundsDots;
     private boolean binding = false;
-    private int lastColumn = -1;
-    private boolean animated = false;
+    private boolean expanded = false;
 
     public MenuModuleElement(Module module) {
         this.module = module;
         animation = new Animation(200, module.isState() ? 1 : 0, Easing.LINEAR);
-        animationPosition = new Animation(150, 1, Easing.QUAD_IN_OUT);
-        animationY = new Animation(150, 1, Easing.QUAD_IN_OUT);
 
         for (Setting setting : module.settings()) {
             if (setting instanceof SliderSettings slider) {
@@ -65,39 +59,24 @@ public class MenuModuleElement extends AbstractMenuElement {
     @Override
     public void render(DrawContext ctx, float mouseX, float mouseY, float x, float y, float moduleWidth, float alpha, int column) {
         MatrixStack matrix = ctx.getMatrices();
-        
-        if (lastColumn == -1) lastColumn = column;
-        if (lastColumn != column) {
-            animated = true;
-            animationPosition.animateTo(x);
-            animationY.animateTo(y);
-            lastColumn = column;
-        }
-
-        if (animated) {
-            x = animationPosition.update(x);
-            y = animationY.update(y);
-            if (animationPosition.isDone() && animationY.isDone()) animated = false;
-        } else {
-            animationPosition.reset(x);
-            animationY.reset(y);
-        }
 
         animation.animateTo(module.isState() ? 1 : 0);
         animation.update();
 
         float moduleHeight = 22;
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
-        
-        int moduleBg = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
+
         boolean hasSettings = hasSettings();
+        boolean showSettings = expanded && hasSettings;
         float settingAreaHeight = getHeight();
+
+        int moduleBg = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
         int settingBg = Theme.applyAlpha(theme.getForegroundDarkInt(), alpha);
 
         bounds = new Rect(x, y, moduleWidth, moduleHeight);
 
-        // Draw background
-        if (hasSettings) {
+        // Background
+        if (showSettings) {
             blur.render(ShapeProperties.create(matrix, x, y, moduleWidth, settingAreaHeight)
                     .round(8).color(settingBg).build());
             blur.render(ShapeProperties.create(matrix, x, y, moduleWidth, moduleHeight)
@@ -107,65 +86,39 @@ public class MenuModuleElement extends AbstractMenuElement {
                     .round(8).color(moduleBg).build());
         }
 
-        int enabledColor = Theme.mixColors(theme.getGrayInt(), theme.getColorInt(), animation.getValue());
-        enabledColor = Theme.applyAlpha(enabledColor, alpha);
-        
-        int textColor = Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue());
-        textColor = Theme.applyAlpha(textColor, alpha);
+        // Name (enabled -> theme color, disabled -> gray)
+        int nameColor = Theme.mixColors(theme.getGrayLightInt(), theme.getColorInt(), animation.getValue());
+        nameColor = Theme.applyAlpha(nameColor, alpha);
+        MsdfFonts.drawText(matrix, module.getVisibleName(), x + 10, y, moduleHeight, nameColor);
 
-        // Module icon
-        MsdfFonts.drawIcon(matrix, "B", x + 8, y + 9, 11, enabledColor);
-        
-        // Module name
-        MsdfFonts.drawText(matrix, module.getVisibleName(), x + 18, y + 7, 14, textColor);
-
-        // Bind box
-        float keyBoxWidth = 22.5f;
-        float keyBoxX = x + moduleWidth - keyBoxWidth;
-        
-        int badgeColor;
-        if (binding) {
-            badgeColor = theme.getSecondColorInt();
-        } else if (module.getKey() != -1) {
-            badgeColor = Theme.mixColors(theme.getWhiteGrayInt(), theme.getColorInt(), animation.getValue());
-        } else {
-            badgeColor = theme.getForegroundLightInt();
-        }
-        badgeColor = Theme.applyAlpha(badgeColor, alpha);
-
-        blur.render(ShapeProperties.create(matrix, keyBoxX, y, keyBoxWidth, moduleHeight)
-                .round(hasSettings ? new float[]{0, 8, 0, 0} : new float[]{0, 8, 8, 0})
-                .color(badgeColor).build());
-
-        String keyText = "n/a";
-        int keyCode = module.getKey();
-        if (keyCode != -1 && keyCode != 0) {
-            String name = GLFW.glfwGetKeyName(keyCode, 0);
-            if (name != null && !name.isBlank()) {
-                keyText = name.toUpperCase();
-            } else {
-                keyText = "KEY" + keyCode;
+        // Settings "dots" (vertical three-dot) on the right
+        float dotsZoneW = 18f;
+        float dotsX = x + moduleWidth - dotsZoneW;
+        boundsDots = new Rect(dotsX, y, dotsZoneW, moduleHeight);
+        if (hasSettings) {
+            int dotColor = Theme.applyAlpha(
+                    expanded ? theme.getColorInt() : theme.getGrayLightInt(), alpha);
+            float dot = 1.6f;
+            float cx = dotsX + dotsZoneW / 2f - dot / 2f;
+            float cy = y + moduleHeight / 2f;
+            for (int i = -1; i <= 1; i++) {
+                blur.render(ShapeProperties.create(matrix, cx, cy + i * 4f - dot / 2f, dot, dot)
+                        .round(dot / 2f).color(dotColor).build());
             }
         }
 
-        int keyColor = Theme.applyAlpha(
-                keyCode != -1 ? Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue()) : theme.getGrayInt(),
-                alpha
-        );
+        if (!showSettings) return;
 
-        float keyTextWidth = MsdfFonts.getTextWidth(keyText, 14);
-        float keyTextX = keyBoxX + (keyBoxWidth - keyTextWidth) / 2f;
-        MsdfFonts.drawText(matrix, keyText, keyTextX, y + 7, 14, keyColor);
+        // Settings list
+        int enabledColor = Theme.applyAlpha(
+                Theme.mixColors(theme.getGrayInt(), theme.getColorInt(), animation.getValue()), alpha);
+        int textColor = Theme.applyAlpha(
+                Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue()), alpha);
+        int descriptionColor = Theme.applyAlpha(
+                Theme.mixColors(theme.getWhiteGrayInt(), theme.getGrayLightInt(), animation.getValue()), alpha);
 
-        boundsBind = new Rect(keyBoxX, y, keyBoxWidth, moduleHeight);
-
-        // Render settings
         float padding = 8;
         float startY = y + moduleHeight + padding;
-        
-        int descriptionColor = Theme.mixColors(theme.getWhiteGrayInt(), theme.getGrayLightInt(), animation.getValue());
-        descriptionColor = Theme.applyAlpha(descriptionColor, alpha);
-
         for (AbstractMenuSetting setting : settings) {
             if (!setting.isVisible()) continue;
             setting.render(ctx, mouseX, mouseY, x, startY, moduleWidth, alpha, animation.getValue(), enabledColor, textColor, descriptionColor, theme);
@@ -175,10 +128,11 @@ public class MenuModuleElement extends AbstractMenuElement {
 
     @Override
     public float getHeight() {
-        return 22 + (hasSettings() ? (float) settings.stream()
+        if (!(expanded && hasSettings())) return 22;
+        return 22 + (float) settings.stream()
                 .filter(AbstractMenuSetting::isVisible)
                 .mapToDouble(m -> m.getHeight() + 8)
-                .sum() + 8 : 0);
+                .sum() + 8;
     }
 
     public boolean hasSettings() {
@@ -194,18 +148,22 @@ public class MenuModuleElement extends AbstractMenuElement {
                 return;
             }
             if (button == 0) {
-                if (boundsBind != null && boundsBind.contains(mouseX, mouseY)) {
-                    binding = !binding;
+                if (hasSettings() && boundsDots != null && boundsDots.contains(mouseX, mouseY)) {
+                    expanded = !expanded;
                 } else {
                     module.switchState();
                 }
+            } else if (button == 1) {
+                if (hasSettings()) expanded = !expanded;
             } else if (button == 2) {
                 binding = !binding;
             }
         }
 
-        for (AbstractMenuSetting setting : settings) {
-            setting.onMouseClicked(mouseX, mouseY, button);
+        if (expanded) {
+            for (AbstractMenuSetting setting : settings) {
+                setting.onMouseClicked(mouseX, mouseY, button);
+            }
         }
     }
 
@@ -222,9 +180,11 @@ public class MenuModuleElement extends AbstractMenuElement {
         }
 
         boolean result = false;
-        for (AbstractMenuSetting setting : settings) {
-            if (setting.keyPressed(keyCode, scanCode, modifiers)) {
-                result = true;
+        if (expanded) {
+            for (AbstractMenuSetting setting : settings) {
+                if (setting.keyPressed(keyCode, scanCode, modifiers)) {
+                    result = true;
+                }
             }
         }
         return result;
@@ -247,8 +207,10 @@ public class MenuModuleElement extends AbstractMenuElement {
 
     @Override
     public void onMouseReleased(double mouseX, double mouseY, int button) {
-        for (AbstractMenuSetting setting : settings) {
-            setting.onMouseReleased(mouseX, mouseY, button);
+        if (expanded) {
+            for (AbstractMenuSetting setting : settings) {
+                setting.onMouseReleased(mouseX, mouseY, button);
+            }
         }
     }
 

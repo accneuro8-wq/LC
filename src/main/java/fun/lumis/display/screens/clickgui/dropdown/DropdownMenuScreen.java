@@ -3,12 +3,18 @@ package fun.lumis.display.screens.clickgui.dropdown;
 import fun.lumis.lumis;
 import fun.lumis.display.screens.clickgui.newgui.elements.AbstractMenuElement;
 import fun.lumis.display.screens.clickgui.newgui.elements.MenuModuleElement;
+import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
+import fun.lumis.display.screens.clickgui.newgui.theme.ThemeManager;
+import fun.lumis.display.screens.clickgui.newgui.utils.MsdfFonts;
 import fun.lumis.features.module.ModuleCategory;
 import fun.lumis.utils.client.sound.SoundManager;
+import fun.lumis.utils.display.shape.ShapeProperties;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,9 +22,10 @@ import java.util.List;
 import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
 /**
- * Minced-style dropdown ClickGui: one draggable, collapsible panel per
- * category, laid out in a horizontal row. Reuses {@link MenuModuleElement}
- * for module rendering, toggling, keybinds and inline settings.
+ * Minced-style dropdown ClickGui: one FIXED panel per category, laid out in a
+ * centered horizontal row, with a search bar at the bottom. Reuses
+ * {@link MenuModuleElement} for module rendering, toggling, keybinds and
+ * collapsible inline settings.
  */
 public class DropdownMenuScreen extends Screen {
 
@@ -32,7 +39,10 @@ public class DropdownMenuScreen extends Screen {
             ModuleCategory.MISC
     };
 
+    private static final float PANEL_GAP = 12f;
+
     private final List<DropdownPanel> panels = new ArrayList<>();
+    private String searchText = "";
 
     public DropdownMenuScreen() {
         super(Text.literal("Dropdown ClickGui"));
@@ -40,21 +50,30 @@ public class DropdownMenuScreen extends Screen {
 
     private void build() {
         panels.clear();
-        float startX = 24f;
-        float startY = 24f;
-        float gap = 12f;
+
+        float totalWidth = CATEGORIES.length * DropdownPanel.WIDTH + (CATEGORIES.length - 1) * PANEL_GAP;
+        float startX = (this.width - totalWidth) / 2f;
+        float startY = 40f;
+
+        String filter = searchText.toLowerCase().trim();
         int column = 0;
         for (ModuleCategory category : CATEGORIES) {
             final ModuleCategory cat = category;
             List<AbstractMenuElement> mods = new ArrayList<>();
             lumis.getInstance().getModuleRepository().modules().stream()
                     .filter(mod -> mod.getCategory() == cat)
+                    .filter(mod -> filter.isEmpty() || mod.getName().toLowerCase().contains(filter))
                     .forEach(mod -> mods.add(new MenuModuleElement(mod)));
 
-            float px = startX + column * (DropdownPanel.WIDTH + gap);
+            float px = startX + column * (DropdownPanel.WIDTH + PANEL_GAP);
             panels.add(new DropdownPanel(cat, mods, column, px, startY));
             column++;
         }
+    }
+
+    @Override
+    protected void init() {
+        build();
     }
 
     @Override
@@ -66,9 +85,22 @@ public class DropdownMenuScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
         blur.setup();
+
         for (DropdownPanel panel : panels) {
             panel.render(context, mouseX, mouseY, 1f);
         }
+
+        // Search bar (bottom center)
+        MatrixStack matrix = context.getMatrices();
+        Theme theme = ThemeManager.getInstance().getCurrentTheme();
+        float sw = 220f, sh = 24f;
+        float sx = (this.width - sw) / 2f;
+        float sy = this.height - sh - 28f;
+        blur.render(ShapeProperties.create(matrix, sx, sy, sw, sh).round(8).color(theme.getForegroundColorInt()).build());
+
+        String shown = searchText.isEmpty() ? "Поиск..." : searchText;
+        int color = searchText.isEmpty() ? theme.getGrayLightInt() : theme.getColorInt();
+        MsdfFonts.drawText(matrix, shown, sx + 12f, sy, sh, color);
     }
 
     @Override
@@ -97,12 +129,31 @@ public class DropdownMenuScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        // Let module keybinding take priority
         boolean handled = false;
         for (DropdownPanel panel : panels) {
             if (panel.keyPressed(keyCode, scanCode, modifiers)) handled = true;
         }
         if (handled) return true;
+
+        if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+            if (!searchText.isEmpty()) {
+                searchText = searchText.substring(0, searchText.length() - 1);
+                build();
+            }
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (chr >= ' ') {
+            searchText += chr;
+            build();
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
     }
 
     @Override
@@ -118,8 +169,14 @@ public class DropdownMenuScreen extends Screen {
         return false;
     }
 
+    @Override
+    public void close() {
+        searchText = "";
+        super.close();
+    }
+
     public void openGui() {
-        build();
+        searchText = "";
         MinecraftClient.getInstance().setScreen(this);
         SoundManager.playSound(SoundManager.OPEN_GUI);
     }
