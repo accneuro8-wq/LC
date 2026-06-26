@@ -45,8 +45,8 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     implementation group: 'com.github.ben-manes.caffeine', name: 'caffeine', version: '3.1.8'
-    compileOnly 'org.projectlombok:lombok:1.18.30'
-    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    compileOnly 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
     modCompileOnly "meteordevelopment:baritone:1.21.4-SNAPSHOT"
     libImpl fileTree(dir: 'libs', include: ['*.jar'])
     libImpl("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
