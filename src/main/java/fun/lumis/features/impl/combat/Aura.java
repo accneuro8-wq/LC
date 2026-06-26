@@ -156,7 +156,7 @@ public class Aura extends Module {
 
     // ====== Settings ======
     SelectSetting aimMode = new SelectSetting("Наводка", "Выберите тип наводки")
-            .value("None", "SpookytimeDuel")
+            .value("None", "SpookytimeDuel", "ReallyWorld")
             .selected("SpookytimeDuel");
 
     MultiSelectSetting targetType = new MultiSelectSetting("Тип таргета", "Фильтрует весь список целей по типу")
