@@ -26,8 +26,12 @@ public class MsdfFonts {
             .data("icons")
             .build());
 
+    // MSDF text at a given size renders visually larger than the native font at
+    // the same pixel size, so scale up to match the original ClickGui proportions.
+    private static final float SCALE = 1.4f;
+
     private static FontRenderer font(float size) {
-        return Fonts.getSize(Math.max(1, Math.round(size)), Fonts.Type.INST);
+        return Fonts.getSize(Math.max(1, Math.round(size * SCALE)), Fonts.Type.INST);
     }
 
     // ===== Icons (unchanged MSDF rendering) =====
