@@ -44,6 +44,7 @@ public class DropdownMenuScreen extends Screen {
     private static final float PANEL_GAP = 12f;
 
     private final List<DropdownPanel> panels = new ArrayList<>();
+    private ThemePanel themePanel;
     private final Animation animOpen = new Animation(280, 0, Easing.QUARTIC_OUT);
     private boolean closing = false;
     private String searchText = "";
@@ -58,6 +59,8 @@ public class DropdownMenuScreen extends Screen {
         float totalWidth = CATEGORIES.length * DropdownPanel.WIDTH + (CATEGORIES.length - 1) * PANEL_GAP;
         float startX = (this.width - totalWidth) / 2f;
         float startY = (this.height - DropdownPanel.HEIGHT) / 2f - 10f;
+
+        themePanel = new ThemePanel(startX - PANEL_GAP - ThemePanel.WIDTH, startY);
 
         String filter = searchText.toLowerCase().trim();
         int column = 0;
@@ -97,6 +100,15 @@ public class DropdownMenuScreen extends Screen {
             return;
         }
 
+        // Theme picker on the left leads the cascade.
+        if (themePanel != null) {
+            float tStagger = closing ? 0.07f * Math.max(1, panels.size()) : 0f;
+            float tSpan = 1f - tStagger;
+            float tpa = clamp01((a - tStagger) / Math.max(0.0001f, tSpan));
+            float tpe = Easing.QUARTIC_OUT.apply(tpa);
+            themePanel.render(context, mouseX, mouseY, tpe, (1f - tpe) * -22f);
+        }
+
         // Staggered wave: each column leads/lags slightly so panels cascade.
         int n = Math.max(1, panels.size());
         for (int i = 0; i < panels.size(); i++) {
@@ -126,6 +138,9 @@ public class DropdownMenuScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (themePanel != null && themePanel.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
         for (DropdownPanel panel : panels) {
             panel.mouseClicked(mouseX, mouseY, button);
         }
