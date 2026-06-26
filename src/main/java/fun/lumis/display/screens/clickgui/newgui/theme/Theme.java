@@ -7,6 +7,41 @@ import java.awt.Color;
 @Getter
 @Setter
 public class Theme {
+
+    // ===== MINCED — signature near-black canvas with a violet accent gradient =====
+    public static final Theme MINCED = new Theme("Minced",
+            new Color(140, 120, 255),   // color (accent)
+            new Color(205, 130, 255),   // secondColor (gradient end)
+            new Color(14, 14, 17),      // backgroundColor
+            new Color(20, 20, 25),      // foregroundColor (panels)
+            new Color(30, 30, 38),      // foregroundLight (selected row)
+            new Color(11, 11, 14),      // foregroundDark
+            new Color(44, 44, 54),      // foregroundGray
+            new Color(244, 244, 250),   // white
+            new Color(150, 150, 162),   // whiteGray
+            new Color(84, 84, 100),     // gray
+            new Color(120, 120, 138),   // grayLight
+            new Color(42, 42, 52),      // foregroundLightStroke
+            new Color(28, 28, 36)       // foregroundStroke
+    );
+
+    // ===== CATLAVAN — deep blue-black with a cyan/teal accent =====
+    public static final Theme CATLAVAN = new Theme("Catlavan",
+            new Color(86, 178, 255),    // color (accent)
+            new Color(120, 230, 220),   // secondColor (gradient end)
+            new Color(12, 14, 18),      // backgroundColor
+            new Color(18, 21, 27),      // foregroundColor (panels)
+            new Color(27, 31, 40),      // foregroundLight (selected row)
+            new Color(9, 11, 14),       // foregroundDark
+            new Color(40, 46, 58),      // foregroundGray
+            new Color(238, 244, 250),   // white
+            new Color(148, 156, 168),   // whiteGray
+            new Color(80, 88, 102),     // gray
+            new Color(116, 126, 142),   // grayLight
+            new Color(38, 44, 56),      // foregroundLightStroke
+            new Color(26, 30, 40)       // foregroundStroke
+    );
+
     public static final Theme DARK = new Theme("Dark",
             new Color(120, 140, 255),
             new Color(180, 140, 255),
@@ -74,60 +109,21 @@ public class Theme {
         this.foregroundStroke = foregroundStroke;
     }
 
-    public int getColorInt() {
-        return color.getRGB();
-    }
-
-    public int getSecondColorInt() {
-        return secondColor.getRGB();
-    }
-
-    public int getBackgroundColorInt() {
-        return backgroundColor.getRGB();
-    }
-
-    public int getForegroundColorInt() {
-        return foregroundColor.getRGB();
-    }
-
-    public int getForegroundLightInt() {
-        return foregroundLight.getRGB();
-    }
-
-    public int getForegroundDarkInt() {
-        return foregroundDark.getRGB();
-    }
-
-    public int getWhiteInt() {
-        return white.getRGB();
-    }
-
-    public int getWhiteGrayInt() {
-        return whiteGray.getRGB();
-    }
-
-    public int getGrayInt() {
-        return gray.getRGB();
-    }
-
-    public int getGrayLightInt() {
-        return grayLight.getRGB();
-    }
-
-    public int getForegroundStrokeInt() {
-        return foregroundStroke.getRGB();
-    }
-
-    public int getForegroundLightStrokeInt() {
-        return foregroundLightStroke.getRGB();
-    }
-
-    public int getForegroundGrayInt() {
-        return foregroundGray.getRGB();
-    }
+    public int getColorInt() { return color.getRGB(); }
+    public int getSecondColorInt() { return secondColor.getRGB(); }
+    public int getBackgroundColorInt() { return backgroundColor.getRGB(); }
+    public int getForegroundColorInt() { return foregroundColor.getRGB(); }
+    public int getForegroundLightInt() { return foregroundLight.getRGB(); }
+    public int getForegroundDarkInt() { return foregroundDark.getRGB(); }
+    public int getWhiteInt() { return white.getRGB(); }
+    public int getWhiteGrayInt() { return whiteGray.getRGB(); }
+    public int getGrayInt() { return gray.getRGB(); }
+    public int getGrayLightInt() { return grayLight.getRGB(); }
+    public int getForegroundStrokeInt() { return foregroundStroke.getRGB(); }
+    public int getForegroundLightStrokeInt() { return foregroundLightStroke.getRGB(); }
+    public int getForegroundGrayInt() { return foregroundGray.getRGB(); }
 
     public static int applyAlpha(int color, float alpha) {
-
         int a = (int) (255 * alpha);
         return (a << 24) | (color & 0x00FFFFFF);
     }

@@ -3,7 +3,7 @@ package fun.lumis.features.impl.render;
 import fun.lumis.features.module.Module;
 import fun.lumis.features.module.ModuleCategory;
 import fun.lumis.lumis;
-import fun.lumis.display.screens.clickgui.MenuScreen;
+import fun.lumis.display.screens.clickgui.newgui.NewMenuScreen;
 import org.lwjgl.glfw.GLFW;
 
 public class Menu extends Module {
@@ -17,15 +17,15 @@ public class Menu extends Module {
     @Override
     public void activate() {
         if (mc.world == null) return;
-        
-        // Use old GUI
-        if (mc.currentScreen == MenuScreen.INSTANCE) return;
-        MenuScreen.INSTANCE.openGui();
+
+        // Modern Minced/Catlavan-styled ClickGui
+        if (mc.currentScreen == NewMenuScreen.INSTANCE) return;
+        NewMenuScreen.INSTANCE.openGui();
     }
 
     @Override
     public void deactivate() {
-        if (mc.currentScreen instanceof MenuScreen) {
+        if (mc.currentScreen instanceof NewMenuScreen) {
             mc.currentScreen.close();
         }
     }

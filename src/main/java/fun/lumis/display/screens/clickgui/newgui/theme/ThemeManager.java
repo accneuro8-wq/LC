@@ -5,7 +5,13 @@ import lombok.Getter;
 @Getter
 public class ThemeManager {
     private static ThemeManager instance;
-    private Theme currentTheme = Theme.DARK; // Убедись, что тут DARK
+
+    // Available presets, cycled by switchTheme(). Minced is the default look.
+    private static final Theme[] PRESETS = {
+            Theme.MINCED, Theme.CATLAVAN, Theme.DARK, Theme.LIGHT
+    };
+
+    private Theme currentTheme = Theme.MINCED;
 
     public static ThemeManager getInstance() {
         if (instance == null) {
@@ -15,7 +21,11 @@ public class ThemeManager {
     }
 
     public void switchTheme() {
-        currentTheme = currentTheme == Theme.DARK ? Theme.LIGHT : Theme.DARK;
+        int idx = 0;
+        for (int i = 0; i < PRESETS.length; i++) {
+            if (PRESETS[i] == currentTheme) { idx = i; break; }
+        }
+        currentTheme = PRESETS[(idx + 1) % PRESETS.length];
     }
 
     public void setTheme(Theme theme) {
@@ -23,6 +33,6 @@ public class ThemeManager {
     }
 
     public boolean isDark() {
-        return currentTheme == Theme.DARK;
+        return currentTheme != Theme.LIGHT;
     }
 }
