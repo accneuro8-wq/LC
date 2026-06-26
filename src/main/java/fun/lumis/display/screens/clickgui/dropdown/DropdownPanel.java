@@ -14,11 +14,11 @@ import java.util.List;
 import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
 /**
- * A single draggable, collapsible category panel for the Minced-style
- * dropdown ClickGui. The header shows the category name; clicking it toggles
- * the dropdown (show/hide the modules), and dragging it moves the panel.
- * Each module is rendered with the shared {@link AbstractMenuElement} so
- * toggles, keybinds and inline settings all keep working.
+ * A single FIXED category panel for the Minced-style dropdown ClickGui.
+ * Panels cannot be moved or collapsed: the header just shows the category
+ * name, and the module list is always visible. Modules are rendered with the
+ * shared {@link AbstractMenuElement} so toggles, keybinds and inline settings
+ * keep working.
  */
 public class DropdownPanel {
     public static final float WIDTH = 132f;
@@ -31,12 +31,7 @@ public class DropdownPanel {
     private final List<AbstractMenuElement> modules;
     private final int column;
 
-    public float x, y;
-    private boolean extended = true;
-
-    private boolean dragging = false;
-    private boolean moved = false;
-    private double dragOffsetX, dragOffsetY;
+    public final float x, y;
 
     public DropdownPanel(ModuleCategory category, List<AbstractMenuElement> modules, int column, float x, float y) {
         this.category = category;
@@ -58,15 +53,7 @@ public class DropdownPanel {
         MsdfFonts.drawSemibold(matrix, category.getReadableName(), x + PADDING,
                 y + (HEADER_H - TEXT_SIZE) / 2f, TEXT_SIZE, textColor);
 
-        // Collapse indicator (arrow icon from the MSDF icon atlas)
-        String arrow = extended ? "9" : ";";
-        float iconSize = 9f;
-        MsdfFonts.drawIcon(matrix, arrow, x + WIDTH - PADDING - MsdfFonts.getIconWidth(arrow, iconSize),
-                y + (HEADER_H - iconSize) / 2f, iconSize, textColor);
-
-        if (!extended) return;
-
-        // Module list
+        // Module list (always shown)
         float moduleY = y + HEADER_H + GAP;
         for (AbstractMenuElement element : modules) {
             element.render(ctx, mouseX, mouseY, x, moduleY, WIDTH, alpha, column);
@@ -74,62 +61,26 @@ public class DropdownPanel {
         }
     }
 
-    private boolean inHeader(double mx, double my) {
-        return mx >= x && mx <= x + WIDTH && my >= y && my <= y + HEADER_H;
-    }
-
     public boolean mouseClicked(double mx, double my, int button) {
-        if (inHeader(mx, my)) {
-            if (button == 0) {
-                dragging = true;
-                moved = false;
-                dragOffsetX = mx - x;
-                dragOffsetY = my - y;
-                return true;
-            }
-            if (button == 1) {
-                extended = !extended;
-                return true;
-            }
-        }
-        if (extended) {
-            for (AbstractMenuElement element : modules) {
-                element.onMouseClicked(mx, my, button);
-            }
+        for (AbstractMenuElement element : modules) {
+            element.onMouseClicked(mx, my, button);
         }
         return false;
     }
 
     public void mouseReleased(double mx, double my, int button) {
-        if (dragging && button == 0) {
-            dragging = false;
-            if (!moved && inHeader(mx, my)) {
-                extended = !extended;
-            }
-        }
-        if (extended) {
-            for (AbstractMenuElement element : modules) {
-                element.onMouseReleased(mx, my, button);
-            }
+        for (AbstractMenuElement element : modules) {
+            element.onMouseReleased(mx, my, button);
         }
     }
 
     public void mouseDragged(double mx, double my, int button, double dx, double dy) {
-        if (dragging) {
-            x = (float) (mx - dragOffsetX);
-            y = (float) (my - dragOffsetY);
-            if (Math.abs(dx) > 1 || Math.abs(dy) > 1) moved = true;
-            return;
-        }
-        if (extended) {
-            for (AbstractMenuElement element : modules) {
-                element.onMouseDragged(mx, my, button, dx, dy);
-            }
+        for (AbstractMenuElement element : modules) {
+            element.onMouseDragged(mx, my, button, dx, dy);
         }
     }
 
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (!extended) return false;
         boolean handled = false;
         for (AbstractMenuElement element : modules) {
             if (element.keyPressed(keyCode, scanCode, modifiers)) handled = true;
@@ -138,7 +89,6 @@ public class DropdownPanel {
     }
 
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        if (!extended) return false;
         boolean handled = false;
         for (AbstractMenuElement element : modules) {
             if (element.mouseScrolled(mx, my, horizontal, vertical)) handled = true;
