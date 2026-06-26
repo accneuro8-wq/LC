@@ -3,121 +3,72 @@ package fun.lumis.display.screens.clickgui.newgui.utils;
 import com.google.common.base.Suppliers;
 import fun.lumis.utils.display.atlasfont.msdf.MsdfFont;
 import fun.lumis.utils.display.systemrender.builders.Builder;
+import fun.lumis.utils.display.font.FontRenderer;
+import fun.lumis.utils.display.font.Fonts;
 import net.minecraft.client.util.math.MatrixStack;
 
 import java.util.function.Supplier;
 
 /**
- * MTSDF fonts for the new ClickGUI.
- * Uses fonts from assets/mre/fonts/
+ * Font facade for the ClickGui.
+ *
+ * Text is rendered with the client's main font ("our font", suisseintl via
+ * {@link Fonts.Type#INST}) so the new ClickGui matches the rest of the UI.
+ * Icons still use the MSDF icon atlas.
+ *
+ * All text is vertically centered on the line: callers pass {@code y} as the
+ * top of a {@code size}-tall line box, and we draw the glyphs centered in it.
  */
 public class MsdfFonts {
-    
-    // Icons font (0-9, A-W for various icons)
+
     public static final Supplier<MsdfFont> ICONS = Suppliers.memoize(() -> MsdfFont.builder()
-            .name("icons")
-            .atlas("icons")
-            .data("icons")
-            .build());
-    
-    // Medium text font (default)
-    public static final Supplier<MsdfFont> MEDIUM = Suppliers.memoize(() -> MsdfFont.builder()
-            .name("medium")
-            .atlas("medium")
-            .data("medium")
-            .build());
-    
-    // Regular text font
-    public static final Supplier<MsdfFont> REGULAR = Suppliers.memoize(() -> MsdfFont.builder()
-            .name("regular")
-            .atlas("regular")
-            .data("regular")
-            .build());
-    
-    // Semibold text font
-    public static final Supplier<MsdfFont> SEMIBOLD = Suppliers.memoize(() -> MsdfFont.builder()
-            .name("semibold")
-            .atlas("semibold")
-            .data("semibold")
+            .atlas("clickgui/font/icons/icons.png")
+            .data("clickgui/font/icons/icons.json")
             .build());
 
-    /**
-     * Draw MTSDF icon
-     */
+    private static FontRenderer font(float size) {
+        return Fonts.getSize(Math.max(1, Math.round(size)), Fonts.Type.INST);
+    }
+
+    // ===== Icons (unchanged MSDF rendering) =====
     public static void drawIcon(MatrixStack matrix, String icon, float x, float y, float size, int color) {
         Builder.text()
                 .font(ICONS.get())
                 .text(icon)
-                .size(size)
+                .scale(size)
                 .color(color)
                 .build()
-                .render(matrix.peek().getPositionMatrix(), x, y, 0);
+                .render(matrix, x, y, 0);
     }
-    
-    /**
-     * Draw text with medium font (default)
-     */
-    public static void drawText(MatrixStack matrix, String text, float x, float y, float size, int color) {
-        Builder.text()
-                .font(MEDIUM.get())
-                .text(text)
-                .size(size)
-                .color(color)
-                .build()
-                .render(matrix.peek().getPositionMatrix(), x, y, 0);
-    }
-    
-    /**
-     * Draw text with regular font
-     */
-    public static void drawRegular(MatrixStack matrix, String text, float x, float y, float size, int color) {
-        Builder.text()
-                .font(REGULAR.get())
-                .text(text)
-                .size(size)
-                .color(color)
-                .build()
-                .render(matrix.peek().getPositionMatrix(), x, y, 0);
-    }
-    
-    /**
-     * Draw text with semibold font
-     */
-    public static void drawSemibold(MatrixStack matrix, String text, float x, float y, float size, int color) {
-        Builder.text()
-                .font(SEMIBOLD.get())
-                .text(text)
-                .size(size)
-                .color(color)
-                .build()
-                .render(matrix.peek().getPositionMatrix(), x, y, 0);
-    }
-    
-    /**
-     * Get icon width
-     */
+
     public static float getIconWidth(String icon, float size) {
         return ICONS.get().getWidth(icon, size);
     }
-    
-    /**
-     * Get text width (medium font)
-     */
+
+    // ===== Text — delegated to the main client font, vertically centered =====
+    public static void drawText(MatrixStack matrix, String text, float x, float y, float size, int color) {
+        FontRenderer fr = font(size);
+        float h = fr.getStringHeight(text);
+        fr.drawString(matrix, text, x, y + size / 2f - h / 2f, color);
+    }
+
+    public static void drawRegular(MatrixStack matrix, String text, float x, float y, float size, int color) {
+        drawText(matrix, text, x, y, size, color);
+    }
+
+    public static void drawSemibold(MatrixStack matrix, String text, float x, float y, float size, int color) {
+        drawText(matrix, text, x, y, size, color);
+    }
+
     public static float getTextWidth(String text, float size) {
-        return MEDIUM.get().getWidth(text, size);
+        return font(size).getStringWidth(text);
     }
-    
-    /**
-     * Get text width with regular font
-     */
+
     public static float getRegularWidth(String text, float size) {
-        return REGULAR.get().getWidth(text, size);
+        return getTextWidth(text, size);
     }
-    
-    /**
-     * Get text width with semibold font
-     */
+
     public static float getSemiboldWidth(String text, float size) {
-        return SEMIBOLD.get().getWidth(text, size);
+        return getTextWidth(text, size);
     }
 }

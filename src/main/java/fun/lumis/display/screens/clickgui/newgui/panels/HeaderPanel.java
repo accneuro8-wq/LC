@@ -85,14 +85,6 @@ public class HeaderPanel {
         float ix = x + (size - MsdfFonts.getIconWidth(themeIcon, iconSize)) / 2f;
         float iy = sidebarY + (size - iconSize) / 2f;
         MsdfFonts.drawIcon(matrix, themeIcon, ix, iy, iconSize, Theme.applyAlpha(theme.getColorInt(), progress));
-        x += size + 8;
-
-        // Layout button
-        layoutToggleButtonBounds = new Rect(x, sidebarY, size, size);
-        blur.render(ShapeProperties.create(matrix, x, sidebarY, size, size).round(6).color(sideBar).build());
-        String layoutIcon = columns == 2 ? ":" : columns == 3 ? ";" : "9";
-        ix = x + (size - MsdfFonts.getIconWidth(layoutIcon, iconSize)) / 2f;
-        MsdfFonts.drawIcon(matrix, layoutIcon, ix, iy, iconSize, Theme.applyAlpha(theme.getColorInt(), progress));
 
         // Search bar
         float searchW = 128, searchH = 22, pad = 8;
@@ -101,7 +93,7 @@ public class HeaderPanel {
         blur.render(ShapeProperties.create(matrix, searchX, sidebarY, searchW, searchH).round(6).color(sideBar).build());
         String searchDisplay = searchText.isEmpty() ? "Search" : searchText;
         int searchColor = searchText.isEmpty() ? Theme.applyAlpha(theme.getWhiteInt(), progress * 0.5f) : textColor;
-        MsdfFonts.drawText(matrix, searchDisplay, searchX + 8, sidebarY + 7, textSize, searchColor);
+        MsdfFonts.drawText(matrix, searchDisplay, searchX + 8, sidebarY + (searchH - textSize) / 2f, textSize, searchColor);
     }
 
     public void resetAnim(ModuleCategory last, ModuleCategory next) {
@@ -110,7 +102,6 @@ public class HeaderPanel {
     }
 
     public boolean handleMouseClicked(double mouseX, double mouseY) {
-        if (layoutToggleButtonBounds != null && layoutToggleButtonBounds.contains(mouseX, mouseY)) { onLayoutToggle.run(); return true; }
         if (themeButtonBounds != null && themeButtonBounds.contains(mouseX, mouseY)) { onThemeSwitch.run(); return true; }
         return searchBarBounds != null && searchBarBounds.contains(mouseX, mouseY);
     }

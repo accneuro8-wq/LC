@@ -85,7 +85,7 @@ public class NewMenuScreen extends Screen {
                 this.sidebarAnimation.animateTo(this.isSidebarExpanded ? 1f : 0f);
             });
             this.headerPanel = new HeaderPanel(
-                    () -> this.columns = (this.columns % 3) + 1,
+                    () -> {},
                     () -> ThemeManager.getInstance().switchTheme()
             );
         }
