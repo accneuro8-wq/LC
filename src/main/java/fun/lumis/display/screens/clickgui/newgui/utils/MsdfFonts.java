@@ -35,10 +35,10 @@ public class MsdfFonts {
         Builder.text()
                 .font(ICONS.get())
                 .text(icon)
-                .scale(size)
+                .size(size)
                 .color(color)
                 .build()
-                .render(matrix, x, y, 0);
+                .render(matrix.peek().getPositionMatrix(), x, y, 0);
     }
 
     public static float getIconWidth(String icon, float size) {
