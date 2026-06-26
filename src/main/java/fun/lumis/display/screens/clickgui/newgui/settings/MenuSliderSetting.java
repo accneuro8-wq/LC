@@ -81,7 +81,7 @@ public class MenuSliderSetting extends AbstractMenuSetting {
 
         // Description
         if (setting.getDescription() != null && !setting.getDescription().isEmpty()) {
-            float descY = settingY + 9;
+            float descY = settingY + 8;
             MsdfFonts.drawRegular(matrix, setting.getDescription(), x + padding + 10, descY, textSize - 1, descriptionColor);
         }
 

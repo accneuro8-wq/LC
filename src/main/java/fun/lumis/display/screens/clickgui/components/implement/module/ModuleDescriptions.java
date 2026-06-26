@@ -39,7 +39,6 @@ public class ModuleDescriptions {
         if (module instanceof ChestStealer) return "Быстро забирает предметы из контейнеров.";
         if (module instanceof AutoTpAccept) return "Автоматически принимает запросы на телепортацию.";
         if (module instanceof AutoLeave) return "Автоматически покидает сервер при угрозе.";
-        if (module instanceof TargetPearl) return "Автоматически бросает жемчужины в цель.";
         if (module instanceof AutoArmor) return "Автоматически надевает лучшую броню.";
         if (module instanceof NoInteract) return "Блокирует взаимодействие с объектами.";
         if (module instanceof ServerRPSpoofer) return "Подделывает данные для серверов.";
@@ -52,7 +51,6 @@ public class ModuleDescriptions {
         if (module instanceof ElytraHelper) return "Улучшает управление элитрами.";
         if (module instanceof JoinerHelper) return "Облегчает процесс входа на сервер.";
         if (module instanceof TabParser) return "Парсит таблисту для получения информации.";
-        if (module instanceof ElytraTarget) return "Помогает в полете на элитрах.";
         if (module instanceof FakeLag) return "Создает фейк лаг для обхода античитов.";
         return "Описание модуля отсутствует.";
     }

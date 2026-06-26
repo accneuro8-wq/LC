@@ -6,7 +6,6 @@ import fun.lumis.events.packet.PacketEvent;
 import fun.lumis.events.player.RotationUpdateEvent;
 import fun.lumis.events.player.TickEvent;
 import fun.lumis.events.render.WorldRenderEvent;
-import fun.lumis.features.impl.movement.ElytraTarget;
 import fun.lumis.features.impl.movement.TargetStrafe;
 import fun.lumis.features.impl.render.Hud;
 import fun.lumis.features.module.Module;
@@ -410,7 +409,7 @@ public class Aura extends Module {
         if (mc.player.isUsingItem()
                 && attackSetting.isSelected(PAUSE_EATING)) return;
 
-        boolean elytraMode = ElytraTarget.getInstance().isState() && mc.player.isGliding();
+        boolean elytraMode = false && mc.player.isGliding();
 
         // Проверка кулдауна — без полного кулдауна вообще не бьём
         float cooldown = mc.player.getAttackCooldownProgress(0.5f);
@@ -534,7 +533,7 @@ public class Aura extends Module {
     // ====== Target ======
     private LivingEntity updateTarget() {
         TargetFinder.EntityFilter filter = new TargetFinder.EntityFilter(targetType.getSelected());
-        float range = ElytraTarget.getInstance().isState()
+        float range = false
                 ? 30.0f
                 : attackRange.getValue() + RANGE_MARGIN + lookRange.getValue();
 
@@ -660,7 +659,7 @@ public class Aura extends Module {
         double distanceFactor = distanceToTarget > 3.2f ? 0.75 : 1.0;
 
         double velocityPredict = 1.0;
-        if (ElytraTarget.getInstance().isState() && mc.player.isGliding()) {
+        if (false && mc.player.isGliding()) {
             velocityPredict = MathHelper.clamp(mc.player.getVelocity().horizontalLength() * 2.5, 1.0, 4.5);
         }
 

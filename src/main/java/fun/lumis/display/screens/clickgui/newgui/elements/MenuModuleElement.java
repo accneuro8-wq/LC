@@ -119,6 +119,11 @@ public class MenuModuleElement extends AbstractMenuElement {
         int enabledColor = Theme.applyAlpha(Theme.mixColors(theme.getGrayInt(), theme.getColorInt(), animation.getValue()), alpha);
         int textColor = Theme.applyAlpha(Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue()), alpha);
         int descriptionColor = Theme.applyAlpha(Theme.mixColors(theme.getWhiteGrayInt(), theme.getGrayLightInt(), animation.getValue()), alpha);
+        if (ThemePanel.colorText) {
+            int cc = Theme.applyAlpha(ColorAssist.getClientColor(), alpha);
+            textColor = cc;
+            descriptionColor = cc;
+        }
 
         float settingsAlpha = alpha * expand;
         float fullH = settingsHeight();

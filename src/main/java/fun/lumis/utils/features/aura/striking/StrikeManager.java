@@ -1,7 +1,6 @@
 package fun.lumis.utils.features.aura.striking;
 
 import fun.lumis.features.impl.movement.Blink;
-import fun.lumis.features.impl.movement.ElytraTarget;
 import fun.lumis.utils.client.Instance;
 import fun.lumis.utils.client.chat.ChatMessage;
 import fun.lumis.utils.display.interfaces.QuickImports;
