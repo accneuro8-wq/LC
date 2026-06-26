@@ -44,7 +44,7 @@ public class DropdownMenuScreen extends Screen {
     private static final float PANEL_GAP = 12f;
 
     private final List<DropdownPanel> panels = new ArrayList<>();
-    private final Animation animOpen = new Animation(280, 0, Easing.CUBIC_OUT);
+    private final Animation animOpen = new Animation(280, 0, Easing.QUARTIC_OUT);
     private boolean closing = false;
     private String searchText = "";
 
