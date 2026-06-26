@@ -101,6 +101,20 @@ public class NewMenuScreen extends Screen {
     }
 
     @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Minced/Catlavan style: keep the game world crisp behind the GUI.
+        // Only the GUI panels use a localized frosted-glass blur, so we suppress
+        // the vanilla full-screen background blur/darkening entirely.
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Minced/Catlavan style: keep the game world crisp behind the GUI.
+        // Only the GUI panels use a localized frosted-glass blur, so we suppress
+        // the vanilla full-screen background blur/darkening entirely.
+    }
+
+    @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!initialized) return;
         // Capture the current framebuffer so the blur shader samples the scene
