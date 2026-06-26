@@ -48,8 +48,11 @@ public class MsdfFonts {
     // ===== Text — delegated to the main client font, vertically centered =====
     public static void drawText(MatrixStack matrix, String text, float x, float y, float size, int color) {
         FontRenderer fr = font(size);
-        float h = fr.getStringHeight(text);
-        fr.drawString(matrix, text, x, y + size / 2f - h / 2f, color);
+        // Use a STABLE reference height (not per-string) so every row aligns
+        // identically. Center this line box inside the size-tall text box,
+        // matching the old MSDF anchor (top=y, box height=size).
+        float lineH = fr.getStringHeight("Ag");
+        fr.drawString(matrix, text, x, y + (size - lineH) / 2f, color);
     }
 
     public static void drawRegular(MatrixStack matrix, String text, float x, float y, float size, int color) {
