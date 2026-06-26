@@ -3,7 +3,7 @@ package fun.lumis.features.impl.render;
 import fun.lumis.features.module.Module;
 import fun.lumis.features.module.ModuleCategory;
 import fun.lumis.lumis;
-import fun.lumis.display.screens.clickgui.newgui.NewMenuScreen;
+import fun.lumis.display.screens.clickgui.dropdown.DropdownMenuScreen;
 import org.lwjgl.glfw.GLFW;
 
 public class Menu extends Module {
@@ -19,13 +19,13 @@ public class Menu extends Module {
         if (mc.world == null) return;
 
         // Modern Minced/Catlavan-styled ClickGui
-        if (mc.currentScreen == NewMenuScreen.INSTANCE) return;
-        NewMenuScreen.INSTANCE.openGui();
+        if (mc.currentScreen == DropdownMenuScreen.INSTANCE) return;
+        DropdownMenuScreen.INSTANCE.openGui();
     }
 
     @Override
     public void deactivate() {
-        if (mc.currentScreen instanceof NewMenuScreen) {
+        if (mc.currentScreen instanceof DropdownMenuScreen) {
             mc.currentScreen.close();
         }
     }

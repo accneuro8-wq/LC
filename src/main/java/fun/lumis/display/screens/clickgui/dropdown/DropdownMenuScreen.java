@@ -1,0 +1,126 @@
+package fun.lumis.display.screens.clickgui.dropdown;
+
+import fun.lumis.lumis;
+import fun.lumis.display.screens.clickgui.newgui.elements.AbstractMenuElement;
+import fun.lumis.display.screens.clickgui.newgui.elements.MenuModuleElement;
+import fun.lumis.features.module.ModuleCategory;
+import fun.lumis.utils.client.sound.SoundManager;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.text.Text;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static fun.lumis.utils.display.interfaces.QuickImports.blur;
+
+/**
+ * Minced-style dropdown ClickGui: one draggable, collapsible panel per
+ * category, laid out in a horizontal row. Reuses {@link MenuModuleElement}
+ * for module rendering, toggling, keybinds and inline settings.
+ */
+public class DropdownMenuScreen extends Screen {
+
+    public static final DropdownMenuScreen INSTANCE = new DropdownMenuScreen();
+
+    private static final ModuleCategory[] CATEGORIES = {
+            ModuleCategory.COMBAT,
+            ModuleCategory.MOVEMENT,
+            ModuleCategory.RENDER,
+            ModuleCategory.PLAYER,
+            ModuleCategory.MISC
+    };
+
+    private final List<DropdownPanel> panels = new ArrayList<>();
+
+    public DropdownMenuScreen() {
+        super(Text.literal("Dropdown ClickGui"));
+    }
+
+    private void build() {
+        panels.clear();
+        float startX = 24f;
+        float startY = 24f;
+        float gap = 12f;
+        int column = 0;
+        for (ModuleCategory category : CATEGORIES) {
+            final ModuleCategory cat = category;
+            List<AbstractMenuElement> mods = new ArrayList<>();
+            lumis.getInstance().getModuleRepository().modules().stream()
+                    .filter(mod -> mod.getCategory() == cat)
+                    .forEach(mod -> mods.add(new MenuModuleElement(mod)));
+
+            float px = startX + column * (DropdownPanel.WIDTH + gap);
+            panels.add(new DropdownPanel(cat, mods, column, px, startY));
+            column++;
+        }
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Keep the world crisp behind the GUI: no vanilla full-screen blur.
+    }
+
+    @Override
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        super.render(context, mouseX, mouseY, delta);
+        blur.setup();
+        for (DropdownPanel panel : panels) {
+            panel.render(context, mouseX, mouseY, 1f);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        for (DropdownPanel panel : panels) {
+            panel.mouseClicked(mouseX, mouseY, button);
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        for (DropdownPanel panel : panels) {
+            panel.mouseReleased(mouseX, mouseY, button);
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        for (DropdownPanel panel : panels) {
+            panel.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        }
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        boolean handled = false;
+        for (DropdownPanel panel : panels) {
+            if (panel.keyPressed(keyCode, scanCode, modifiers)) handled = true;
+        }
+        if (handled) return true;
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        for (DropdownPanel panel : panels) {
+            panel.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override
+    public boolean shouldPause() {
+        return false;
+    }
+
+    public void openGui() {
+        build();
+        MinecraftClient.getInstance().setScreen(this);
+        SoundManager.playSound(SoundManager.OPEN_GUI);
+    }
+}

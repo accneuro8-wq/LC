@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import fun.lumis.utils.client.managers.event.EventManager;
 import fun.lumis.events.keyboard.KeyEvent;
-import fun.lumis.display.screens.clickgui.newgui.NewMenuScreen;
+import fun.lumis.display.screens.clickgui.dropdown.DropdownMenuScreen;
 
 @Mixin(Keyboard.class)
 public class KeyboardMixin {
@@ -27,7 +27,7 @@ public class KeyboardMixin {
         if (key != GLFW.GLFW_KEY_UNKNOWN && window == client.getWindow().getHandle()) {
             if (action == 0 && key == BindCommand.ClickGuiManager.getClickGuiKey() && client.currentScreen == null) {
                 // Modern Minced/Catlavan-styled ClickGui
-                NewMenuScreen.INSTANCE.openGui();
+                DropdownMenuScreen.INSTANCE.openGui();
             }
 
             EventManager.callEvent(new KeyEvent(client.currentScreen, InputUtil.Type.KEYSYM, key, action));
