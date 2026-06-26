@@ -155,7 +155,7 @@ public class Aura extends Module {
 
     // ====== Settings ======
     SelectSetting aimMode = new SelectSetting("Наводка", "Выберите тип наводки")
-            .value("None", "SpookytimeDuel", "ReallyWorld", "Vodkacraft")
+            .value("None", "SpookytimeDuel", "ReallyWorld", "Vodkacraft", "FunTime")
             .selected("SpookytimeDuel");
 
     MultiSelectSetting targetType = new MultiSelectSetting("Тип таргета", "Фильтрует весь список целей по типу")
@@ -726,7 +726,7 @@ public class Aura extends Module {
         if (mc.player != null && mc.player.isGliding()) return glidingMode;
         return smoothModeCache.computeIfAbsent(aimMode.getSelected(), k -> switch (k) {
             case "SpookytimeDuel" -> new SpookytimeDuel();
-            case "FunTime" -> new FTAngle();
+            case "FunTime" -> new PolarAngle();
             case "HolyWorld" -> new HWAngle();
             case "HvH" -> new HAngle();
             case "Snap" -> new SnapAngle();
