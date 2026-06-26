@@ -14,25 +14,19 @@ import java.awt.Color;
 import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
 /**
- * Right-side customization panel for the dropdown ClickGui:
- *  - theme presets (Minced / Catlavan / Dark / Light)
- *  - a live color palette bound to the global client color
- *    ({@code Hud.colorSetting}), so picking a color recolors the HUD and every
- *    module that uses the client accent.
+ * Right-side color palette for the dropdown ClickGui, bound to the global client
+ * color ({@code Hud.colorSetting}). Picking a color recolors the HUD and every
+ * module that uses the client accent.
  */
 public class ThemePanel {
     public static final float WIDTH = 132f;
     public static final float HEADER_H = 28f;
-    private static final float ROW_H = 19f;
     private static final float PADDING = 10f;
-    private static final float SV_H = 66f;
+    private static final float SV_H = 96f;
     private static final float HUE_W = 9f;
     private static final float GAP = 5f;
 
-    private static final Theme[] THEMES = { Theme.MINCED, Theme.CATLAVAN, Theme.DARK, Theme.LIGHT };
-
     public final float x, baseY;
-    private final float[] hover = new float[THEMES.length];
 
     // palette geometry (set each frame)
     private float svX, svY, svW, svH, hueX, hueY, hueH;
@@ -53,8 +47,7 @@ public class ThemePanel {
     }
 
     public static float panelHeight() {
-        // header + theme label + theme rows + divider + color label + palette
-        return HEADER_H + 12f + THEMES.length * ROW_H + 10f + 12f + SV_H + 10f;
+        return HEADER_H + 8f + SV_H + 10f;
     }
 
     public void render(DrawContext ctx, float mouseX, float mouseY, float alpha, float yOffset) {
@@ -78,50 +71,14 @@ public class ThemePanel {
         blur.render(ShapeProperties.create(matrix, x, y, WIDTH, height).round(8).color(bg).build());
 
         int white = Theme.applyAlpha(theme.getWhiteInt(), alpha);
-        int gray = Theme.applyAlpha(theme.getGrayLightInt(), alpha);
 
         // Header
-        MsdfFonts.drawSemibold(matrix, "Customize", x + PADDING, y + HEADER_H / 2f - 4.5f, 9, white);
+        MsdfFonts.drawSemibold(matrix, "Color", x + PADDING, y + HEADER_H / 2f - 4.5f, 9, white);
         blur.render(ShapeProperties.create(matrix, x + 6, y + HEADER_H - 1, WIDTH - 12, 0.75f)
                 .round(0.5f).color(Theme.applyAlpha(theme.getForegroundStrokeInt(), alpha)).build());
 
-        // ---- Theme presets ----
-        float cy = y + HEADER_H + 6f;
-        MsdfFonts.drawText(matrix, "Theme", x + PADDING, cy, 7, gray);
-        cy += 12f;
-
-        for (int i = 0; i < THEMES.length; i++) {
-            Theme t = THEMES[i];
-            boolean selected = theme == t;
-            boolean hovered = mouseX >= x && mouseX <= x + WIDTH && mouseY >= cy && mouseY <= cy + ROW_H;
-            hover[i] += ((hovered ? 1f : 0f) - hover[i]) * 0.2f;
-
-            if (selected || hover[i] > 0.01f) {
-                float h = selected ? 1f : hover[i] * 0.6f;
-                int hl = Theme.applyAlpha(theme.getColorInt(), alpha * 0.16f * h);
-                blur.render(ShapeProperties.create(matrix, x + 5, cy + 1, WIDTH - 10, ROW_H - 2)
-                        .round(5).color(hl).build());
-            }
-
-            int accent = Theme.applyAlpha(t.getColorInt(), alpha);
-            blur.render(ShapeProperties.create(matrix, x + PADDING, cy + (ROW_H - 9) / 2f, 9, 9)
-                    .round(3).color(accent).build());
-
-            int textCol = Theme.applyAlpha(selected ? theme.getColorInt() : theme.getWhiteInt(), alpha);
-            MsdfFonts.drawText(matrix, t.getName(), x + PADDING + 9 + 7, cy + (ROW_H - 7) / 2f, 7, textCol);
-            cy += ROW_H;
-        }
-
-        // ---- Divider ----
-        cy += 4f;
-        blur.render(ShapeProperties.create(matrix, x + 6, cy, WIDTH - 12, 0.75f)
-                .round(0.5f).color(Theme.applyAlpha(theme.getForegroundStrokeInt(), alpha)).build());
-        cy += 8f;
-
         // ---- Color palette (bound to client/HUD color) ----
-        MsdfFonts.drawText(matrix, "Client Color", x + PADDING, cy, 7, gray);
-        cy += 11f;
-
+        float cy = y + HEADER_H + 8f;
         svX = x + PADDING;
         svY = cy;
         svH = SV_H;
@@ -174,17 +131,6 @@ public class ThemePanel {
         float height = panelHeight();
         if (mx < x || mx > x + WIDTH || my < baseY || my > baseY + height) return false;
 
-        // theme rows
-        float cy = baseY + HEADER_H + 6f + 12f;
-        for (Theme t : THEMES) {
-            if (my >= cy && my <= cy + ROW_H) {
-                ThemeManager.getInstance().setTheme(t);
-                return true;
-            }
-            cy += ROW_H;
-        }
-
-        // palette
         ColorSetting cs = clientColor();
         if (inRect(mx, my, svX, svY, svW, svH)) {
             draggingSV = true;
