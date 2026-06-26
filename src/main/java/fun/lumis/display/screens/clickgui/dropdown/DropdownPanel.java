@@ -1,6 +1,7 @@
 package fun.lumis.display.screens.clickgui.dropdown;
 
 import fun.lumis.display.screens.clickgui.newgui.elements.AbstractMenuElement;
+import fun.lumis.display.screens.clickgui.newgui.elements.MenuModuleElement;
 import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
 import fun.lumis.display.screens.clickgui.newgui.theme.ThemeManager;
 import fun.lumis.display.screens.clickgui.newgui.utils.MsdfFonts;
@@ -15,22 +16,25 @@ import java.util.List;
 import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
 /**
- * A single FIXED category panel for the Minced-style dropdown ClickGui.
- * Panels cannot be moved or collapsed: header shows the category icon + name,
- * and the module list is always visible. Modules are rendered with the shared
- * {@link AbstractMenuElement} so toggles, keybinds and inline settings work.
+ * One FIXED dark category card for the Minced-style dropdown ClickGui:
+ * a single rounded panel containing a header (icon + name) and a scrollable
+ * list of flat module rows. Cannot be moved or collapsed.
  */
 public class DropdownPanel {
     public static final float WIDTH = 150f;
-    public static final float HEADER_H = 26f;
+    public static final float HEADER_H = 28f;
+    public static final int VISIBLE_ROWS = 11;
+    public static final float LIST_H = VISIBLE_ROWS * MenuModuleElement.ROW_H;
+    public static final float HEIGHT = HEADER_H + LIST_H + 4f;
     private static final float PADDING = 10f;
-    private static final float GAP = 5f;
 
     private final ModuleCategory category;
     private final List<AbstractMenuElement> modules;
     private final int column;
 
     public final float x, y;
+    private float scroll = 0f;
+    private float maxScroll = 0f;
 
     public DropdownPanel(ModuleCategory category, List<AbstractMenuElement> modules, int column, float x, float y) {
         this.category = category;
@@ -55,34 +59,64 @@ public class DropdownPanel {
         MatrixStack matrix = ctx.getMatrices();
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
 
-        // Header bar
-        int headerColor = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
-        blur.render(ShapeProperties.create(matrix, x, y, WIDTH, HEADER_H).round(8).color(headerColor).build());
+        // Single dark card
+        int bg = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
+        blur.render(ShapeProperties.create(matrix, x, y, WIDTH, HEIGHT).round(8).color(bg).build());
 
-        int textColor = Theme.applyAlpha(theme.getColorInt(), alpha);
-
-        // Category icon + name
-        float iconSize = 14f;
-        float iconY = y + (HEADER_H - iconSize) / 2f + 1f;
+        // Header: icon + name
+        int white = Theme.applyAlpha(theme.getWhiteInt(), alpha);
+        float iconSize = 11f;
         Fonts.getSize((int) iconSize, Fonts.Type.ICONSCATEGORY)
-                .drawString(matrix, categoryIcon(), x + PADDING, iconY, textColor);
-
+                .drawString(matrix, categoryIcon(), x + PADDING, y + (HEADER_H - iconSize) / 2f + 1f, white);
         float nameX = x + PADDING + iconSize + 6f;
-        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, y + 8, 11f, textColor);
+        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, y + (HEADER_H - 9) / 2f, 9, white);
 
-        // Module list (always shown)
-        float moduleY = y + HEADER_H + GAP;
+        // Divider
+        blur.render(ShapeProperties.create(matrix, x + 6, y + HEADER_H - 1, WIDTH - 12, 0.75f)
+                .round(0.5f).color(Theme.applyAlpha(theme.getForegroundStrokeInt(), alpha)).build());
+
+        // Scrollable list (clipped)
+        float listTop = y + HEADER_H + 2f;
+        float listBottom = y + HEIGHT - 2f;
+
+        ctx.enableScissor((int) x, (int) listTop, (int) (x + WIDTH), (int) listBottom);
+
+        float my = listTop - scroll;
+        float total = 0f;
         for (AbstractMenuElement element : modules) {
-            element.render(ctx, mouseX, mouseY, x, moduleY, WIDTH, alpha, column);
-            moduleY += element.getHeight() + GAP;
+            element.render(ctx, mouseX, mouseY, x, my, WIDTH, alpha, column);
+            float h = element.getHeight() + 1f;
+            my += h;
+            total += h;
+        }
+        ctx.disableScissor();
+
+        maxScroll = Math.max(0, total - (listBottom - listTop));
+
+        // Scrollbar
+        if (maxScroll > 0) {
+            float trackH = listBottom - listTop;
+            float thumbH = Math.max(18f, trackH * (trackH / total));
+            float thumbY = listTop + (trackH - thumbH) * (scroll / maxScroll);
+            blur.render(ShapeProperties.create(matrix, x + WIDTH - 3.5f, thumbY, 2f, thumbH)
+                    .round(1f).color(Theme.applyAlpha(theme.getGrayInt(), alpha)).build());
         }
     }
 
+    private boolean inList(double my) {
+        return my >= y + HEADER_H && my <= y + HEIGHT;
+    }
+
+    private boolean inPanel(double mx, double my) {
+        return mx >= x && mx <= x + WIDTH && my >= y && my <= y + HEIGHT;
+    }
+
     public boolean mouseClicked(double mx, double my, int button) {
+        if (!inList(my) || !inPanel(mx, my)) return false;
         for (AbstractMenuElement element : modules) {
             element.onMouseClicked(mx, my, button);
         }
-        return false;
+        return true;
     }
 
     public void mouseReleased(double mx, double my, int button) {
@@ -106,10 +140,8 @@ public class DropdownPanel {
     }
 
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        boolean handled = false;
-        for (AbstractMenuElement element : modules) {
-            if (element.mouseScrolled(mx, my, horizontal, vertical)) handled = true;
-        }
-        return handled;
+        if (!inPanel(mx, my)) return false;
+        scroll = (float) Math.max(0, Math.min(maxScroll, scroll - vertical * 20));
+        return true;
     }
 }

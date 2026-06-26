@@ -53,7 +53,7 @@ public class DropdownMenuScreen extends Screen {
 
         float totalWidth = CATEGORIES.length * DropdownPanel.WIDTH + (CATEGORIES.length - 1) * PANEL_GAP;
         float startX = (this.width - totalWidth) / 2f;
-        float startY = 40f;
+        float startY = (this.height - DropdownPanel.HEIGHT) / 2f - 10f;
 
         String filter = searchText.toLowerCase().trim();
         int column = 0;

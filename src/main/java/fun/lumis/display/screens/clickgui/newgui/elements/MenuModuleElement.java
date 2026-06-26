@@ -23,8 +23,17 @@ import java.util.List;
 
 import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
+/**
+ * Flat module row for the Minced-style dropdown: just the module name on the
+ * left and a three-dot settings handle on the right. No per-row background box;
+ * the whole row lives inside the panel's single dark card. Clicking the row
+ * toggles the module; clicking the dots (or right-click) expands inline
+ * settings.
+ */
 @Getter
 public class MenuModuleElement extends AbstractMenuElement {
+    public static final float ROW_H = 22f;
+
     private final Module module;
     private final List<AbstractMenuSetting> settings = new ArrayList<>();
     private final Animation animation;
@@ -63,62 +72,48 @@ public class MenuModuleElement extends AbstractMenuElement {
         animation.animateTo(module.isState() ? 1 : 0);
         animation.update();
 
-        float moduleHeight = 22;
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
-
         boolean hasSettings = hasSettings();
         boolean showSettings = expanded && hasSettings;
-        float settingAreaHeight = getHeight();
 
-        int moduleBg = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
-        int settingBg = Theme.applyAlpha(theme.getForegroundDarkInt(), alpha);
+        bounds = new Rect(x, y, moduleWidth, ROW_H);
+        boolean hovered = bounds.contains(mouseX, mouseY);
 
-        bounds = new Rect(x, y, moduleWidth, moduleHeight);
-
-        // Background
-        if (showSettings) {
-            blur.render(ShapeProperties.create(matrix, x, y, moduleWidth, settingAreaHeight)
-                    .round(8).color(settingBg).build());
-            blur.render(ShapeProperties.create(matrix, x, y, moduleWidth, moduleHeight)
-                    .round(8, 8, 0, 0).color(moduleBg).build());
-        } else {
-            blur.render(ShapeProperties.create(matrix, x, y, moduleWidth, moduleHeight)
-                    .round(8).color(moduleBg).build());
+        // Subtle highlight on hover / when expanded
+        if (hovered || showSettings) {
+            blur.render(ShapeProperties.create(matrix, x + 3, y, moduleWidth - 6, ROW_H)
+                    .round(5).color(Theme.applyAlpha(theme.getForegroundLightInt(), alpha)).build());
         }
 
-        // Name (enabled -> theme color, disabled -> gray)
-        int nameColor = Theme.mixColors(theme.getGrayLightInt(), theme.getColorInt(), animation.getValue());
+        // Name: enabled -> accent color, disabled -> muted gray
+        int nameColor = Theme.mixColors(theme.getWhiteGrayInt(), theme.getColorInt(), animation.getValue());
         nameColor = Theme.applyAlpha(nameColor, alpha);
-        MsdfFonts.drawText(matrix, module.getVisibleName(), x + 10, y + 7, 13, nameColor);
+        MsdfFonts.drawText(matrix, module.getVisibleName(), x + 12, y + (ROW_H - 9) / 2f, 9, nameColor);
 
-        // Settings "dots" (vertical three-dot) on the right
-        float dotsZoneW = 18f;
+        // Three-dot settings handle on the right
+        float dotsZoneW = 16f;
         float dotsX = x + moduleWidth - dotsZoneW;
-        boundsDots = new Rect(dotsX, y, dotsZoneW, moduleHeight);
+        boundsDots = new Rect(dotsX, y, dotsZoneW, ROW_H);
         if (hasSettings) {
-            int dotColor = Theme.applyAlpha(
-                    expanded ? theme.getColorInt() : theme.getGrayLightInt(), alpha);
-            float dot = 1.6f;
+            int dotColor = Theme.applyAlpha(expanded ? theme.getColorInt() : theme.getGrayLightInt(), alpha);
+            float dot = 1.5f;
             float cx = dotsX + dotsZoneW / 2f - dot / 2f;
-            float cy = y + moduleHeight / 2f;
+            float cy = y + ROW_H / 2f;
             for (int i = -1; i <= 1; i++) {
-                blur.render(ShapeProperties.create(matrix, cx, cy + i * 4f - dot / 2f, dot, dot)
+                blur.render(ShapeProperties.create(matrix, cx, cy + i * 3.6f - dot / 2f, dot, dot)
                         .round(dot / 2f).color(dotColor).build());
             }
         }
 
         if (!showSettings) return;
 
-        // Settings list
-        int enabledColor = Theme.applyAlpha(
-                Theme.mixColors(theme.getGrayInt(), theme.getColorInt(), animation.getValue()), alpha);
-        int textColor = Theme.applyAlpha(
-                Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue()), alpha);
-        int descriptionColor = Theme.applyAlpha(
-                Theme.mixColors(theme.getWhiteGrayInt(), theme.getGrayLightInt(), animation.getValue()), alpha);
+        // Inline settings
+        int enabledColor = Theme.applyAlpha(Theme.mixColors(theme.getGrayInt(), theme.getColorInt(), animation.getValue()), alpha);
+        int textColor = Theme.applyAlpha(Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue()), alpha);
+        int descriptionColor = Theme.applyAlpha(Theme.mixColors(theme.getWhiteGrayInt(), theme.getGrayLightInt(), animation.getValue()), alpha);
 
-        float padding = 8;
-        float startY = y + moduleHeight + padding;
+        float padding = 6;
+        float startY = y + ROW_H + padding;
         for (AbstractMenuSetting setting : settings) {
             if (!setting.isVisible()) continue;
             setting.render(ctx, mouseX, mouseY, x, startY, moduleWidth, alpha, animation.getValue(), enabledColor, textColor, descriptionColor, theme);
@@ -128,8 +123,8 @@ public class MenuModuleElement extends AbstractMenuElement {
 
     @Override
     public float getHeight() {
-        if (!(expanded && hasSettings())) return 22;
-        return 22 + (float) settings.stream()
+        if (!(expanded && hasSettings())) return ROW_H;
+        return ROW_H + (float) settings.stream()
                 .filter(AbstractMenuSetting::isVisible)
                 .mapToDouble(m -> m.getHeight() + 8)
                 .sum() + 8;
@@ -192,7 +187,7 @@ public class MenuModuleElement extends AbstractMenuElement {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        return true;
+        return false;
     }
 
     @Override
