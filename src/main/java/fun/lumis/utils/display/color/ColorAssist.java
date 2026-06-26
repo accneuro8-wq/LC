@@ -546,7 +546,7 @@ public class ColorAssist {
 
     public int getText(float alpha) {return multAlpha(getText(),alpha);}
 
-    public int getText() {return getClientColor();}
+    public int getText() {return new Color(255,255,255,255).getRGB();}
     public int getText2() {return new Color(175, 175, 175,255).getRGB();}
 
 
