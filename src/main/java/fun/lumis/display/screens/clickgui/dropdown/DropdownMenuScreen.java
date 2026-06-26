@@ -1,6 +1,8 @@
 package fun.lumis.display.screens.clickgui.dropdown;
 
 import fun.lumis.lumis;
+import fun.lumis.display.screens.clickgui.newgui.animation.Animation;
+import fun.lumis.display.screens.clickgui.newgui.animation.Easing;
 import fun.lumis.display.screens.clickgui.newgui.elements.AbstractMenuElement;
 import fun.lumis.display.screens.clickgui.newgui.elements.MenuModuleElement;
 import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
@@ -42,6 +44,8 @@ public class DropdownMenuScreen extends Screen {
     private static final float PANEL_GAP = 12f;
 
     private final List<DropdownPanel> panels = new ArrayList<>();
+    private final Animation animOpen = new Animation(280, 0, Easing.CUBIC_OUT);
+    private boolean closing = false;
     private String searchText = "";
 
     public DropdownMenuScreen() {
@@ -86,8 +90,16 @@ public class DropdownMenuScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
         blur.setup();
 
+        animOpen.update();
+        float a = animOpen.getValue();
+        if (closing && a <= 0.02f) {
+            MinecraftClient.getInstance().setScreen(null);
+            return;
+        }
+        float yOffset = (1f - a) * -18f;
+
         for (DropdownPanel panel : panels) {
-            panel.render(context, mouseX, mouseY, 1f);
+            panel.render(context, mouseX, mouseY, a, yOffset);
         }
 
         // Search bar (bottom center)
@@ -96,11 +108,11 @@ public class DropdownMenuScreen extends Screen {
         float sw = 220f, sh = 24f;
         float sx = (this.width - sw) / 2f;
         float sy = this.height - sh - 28f;
-        blur.render(ShapeProperties.create(matrix, sx, sy, sw, sh).round(8).color(theme.getForegroundColorInt()).build());
+        blur.render(ShapeProperties.create(matrix, sx, sy + yOffset, sw, sh).round(8).color(Theme.applyAlpha(theme.getForegroundColorInt(), a)).build());
 
         String shown = searchText.isEmpty() ? "Поиск..." : searchText;
-        int color = searchText.isEmpty() ? theme.getGrayLightInt() : theme.getColorInt();
-        MsdfFonts.drawText(matrix, shown, sx + 12f, sy + 7f, 12, color);
+        int color = Theme.applyAlpha(searchText.isEmpty() ? theme.getGrayLightInt() : theme.getColorInt(), a);
+        MsdfFonts.drawText(matrix, shown, sx + 12f, sy + yOffset + 7f, 12, color);
     }
 
     @Override
@@ -136,6 +148,10 @@ public class DropdownMenuScreen extends Screen {
         }
         if (handled) return true;
 
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            startClose();
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
             if (!searchText.isEmpty()) {
                 searchText = searchText.substring(0, searchText.length() - 1);
@@ -175,8 +191,21 @@ public class DropdownMenuScreen extends Screen {
         super.close();
     }
 
+    private void startClose() {
+        closing = true;
+        animOpen.animateTo(0f);
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return false;
+    }
+
     public void openGui() {
         searchText = "";
+        closing = false;
+        animOpen.setValue(0f);
+        animOpen.animateTo(1f);
         MinecraftClient.getInstance().setScreen(this);
         SoundManager.playSound(SoundManager.OPEN_GUI);
     }

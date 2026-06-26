@@ -17,8 +17,9 @@ import static fun.lumis.utils.display.interfaces.QuickImports.blur;
 
 /**
  * One FIXED dark category card for the Minced-style dropdown ClickGui:
- * a single rounded panel containing a header (icon + name) and a scrollable
- * list of flat module rows. Cannot be moved or collapsed.
+ * a single rounded panel with a header (icon + name) and a scrollable list of
+ * flat module rows. Open/close offset comes from the screen; scrolling is
+ * smoothly interpolated.
  */
 public class DropdownPanel {
     public static final float WIDTH = 150f;
@@ -32,7 +33,8 @@ public class DropdownPanel {
     private final List<AbstractMenuElement> modules;
     private final int column;
 
-    public final float x, y;
+    public final float x, baseY;
+    private float scrollTarget = 0f;
     private float scroll = 0f;
     private float maxScroll = 0f;
 
@@ -41,7 +43,7 @@ public class DropdownPanel {
         this.modules = modules;
         this.column = column;
         this.x = x;
-        this.y = y;
+        this.baseY = y;
     }
 
     private String categoryIcon() {
@@ -55,7 +57,12 @@ public class DropdownPanel {
         };
     }
 
-    public void render(DrawContext ctx, float mouseX, float mouseY, float alpha) {
+    public void render(DrawContext ctx, float mouseX, float mouseY, float alpha, float yOffset) {
+        // Smooth scroll interpolation
+        scroll += (scrollTarget - scroll) * 0.25f;
+        if (Math.abs(scrollTarget - scroll) < 0.1f) scroll = scrollTarget;
+
+        float y = baseY + yOffset;
         MatrixStack matrix = ctx.getMatrices();
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
 
@@ -63,13 +70,15 @@ public class DropdownPanel {
         int bg = Theme.applyAlpha(theme.getForegroundColorInt(), alpha);
         blur.render(ShapeProperties.create(matrix, x, y, WIDTH, HEIGHT).round(8).color(bg).build());
 
-        // Header: icon + name
+        // Header: icon + name, both vertically centered on the same midline
         int white = Theme.applyAlpha(theme.getWhiteInt(), alpha);
-        float iconSize = 11f;
+        float headerMid = y + HEADER_H / 2f;
+        float iconSize = 10f;
+        float nameSize = 9f;
         Fonts.getSize((int) iconSize, Fonts.Type.ICONSCATEGORY)
-                .drawString(matrix, categoryIcon(), x + PADDING, y + (HEADER_H - iconSize) / 2f + 1f, white);
-        float nameX = x + PADDING + iconSize + 6f;
-        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, y + (HEADER_H - 9) / 2f, 9, white);
+                .drawString(matrix, categoryIcon(), x + PADDING, headerMid - iconSize / 2f, white);
+        float nameX = x + PADDING + iconSize + 7f;
+        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, headerMid - nameSize / 2f, (int) nameSize, white);
 
         // Divider
         blur.render(ShapeProperties.create(matrix, x + 6, y + HEADER_H - 1, WIDTH - 12, 0.75f)
@@ -78,7 +87,6 @@ public class DropdownPanel {
         // Scrollable list (clipped)
         float listTop = y + HEADER_H + 2f;
         float listBottom = y + HEIGHT - 2f;
-
         ctx.enableScissor((int) x, (int) listTop, (int) (x + WIDTH), (int) listBottom);
 
         float my = listTop - scroll;
@@ -92,6 +100,7 @@ public class DropdownPanel {
         ctx.disableScissor();
 
         maxScroll = Math.max(0, total - (listBottom - listTop));
+        if (scrollTarget > maxScroll) scrollTarget = maxScroll;
 
         // Scrollbar
         if (maxScroll > 0) {
@@ -104,11 +113,11 @@ public class DropdownPanel {
     }
 
     private boolean inList(double my) {
-        return my >= y + HEADER_H && my <= y + HEIGHT;
+        return my >= baseY + HEADER_H && my <= baseY + HEIGHT;
     }
 
     private boolean inPanel(double mx, double my) {
-        return mx >= x && mx <= x + WIDTH && my >= y && my <= y + HEIGHT;
+        return mx >= x && mx <= x + WIDTH && my >= baseY && my <= baseY + HEIGHT;
     }
 
     public boolean mouseClicked(double mx, double my, int button) {
@@ -141,7 +150,7 @@ public class DropdownPanel {
 
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
         if (!inPanel(mx, my)) return false;
-        scroll = (float) Math.max(0, Math.min(maxScroll, scroll - vertical * 20));
+        scrollTarget = (float) Math.max(0, Math.min(maxScroll, scrollTarget - vertical * 28));
         return true;
     }
 }
