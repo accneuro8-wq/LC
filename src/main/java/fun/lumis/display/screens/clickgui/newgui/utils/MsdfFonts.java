@@ -22,8 +22,8 @@ import java.util.function.Supplier;
 public class MsdfFonts {
 
     public static final Supplier<MsdfFont> ICONS = Suppliers.memoize(() -> MsdfFont.builder()
-            .atlas("clickgui/font/icons/icons")
-            .data("clickgui/font/icons/icons")
+            .atlas("icons")
+            .data("icons")
             .build());
 
     private static FontRenderer font(float size) {
