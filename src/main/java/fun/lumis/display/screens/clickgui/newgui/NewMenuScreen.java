@@ -103,6 +103,10 @@ public class NewMenuScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         if (!initialized) return;
+        // Capture the current framebuffer so the blur shader samples the scene
+        // behind the GUI instead of smearing the whole screen (HUD blur path is
+        // skipped while a Screen is open).
+        blur.setup();
         MatrixStack matrix = context.getMatrices();
         
         animationColumns.update(columns == 3 ? 1 : 0);
