@@ -5,6 +5,7 @@ import fun.lumis.features.module.setting.implement.ColorSetting;
 import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
 import fun.lumis.display.screens.clickgui.newgui.theme.ThemeManager;
 import fun.lumis.display.screens.clickgui.newgui.utils.MsdfFonts;
+import fun.lumis.display.screens.clickgui.newgui.utils.Rect;
 import fun.lumis.utils.display.shape.ShapeProperties;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
@@ -25,6 +26,12 @@ public class ThemePanel {
     private static final float SV_H = 96f;
     private static final float HUE_W = 9f;
     private static final float GAP = 5f;
+
+    /** When true, ClickGui text adopts the client color too. */
+    public static boolean colorText = false;
+
+    private static final float TOGGLE_H = 20f;
+    private Rect toggleBounds;
 
     public final float x, baseY;
 
@@ -47,7 +54,7 @@ public class ThemePanel {
     }
 
     public static float panelHeight() {
-        return HEADER_H + 8f + SV_H + 10f;
+        return HEADER_H + 8f + SV_H + 8f + TOGGLE_H + 6f;
     }
 
     public void render(DrawContext ctx, float mouseX, float mouseY, float alpha, float yOffset) {
@@ -121,6 +128,23 @@ public class ThemePanel {
         float hueHandleY = hueY + hue * hueH;
         blur.render(ShapeProperties.create(matrix, hueX - 1f, hueHandleY - 1.5f, HUE_W + 2f, 3f)
                 .round(1.5f).color(Theme.applyAlpha(0xFFFFFFFF, alpha)).build());
+
+        // ---- Toggle: apply color to ClickGui text ----
+        float ty = svY + svH + 8f;
+        float boxSize = 11f;
+        float boxX = x + PADDING;
+        float boxY = ty + (TOGGLE_H - boxSize) / 2f;
+        int boxOff = Theme.applyAlpha(theme.getForegroundStrokeInt(), alpha);
+        int boxOn = Theme.applyAlpha(cs.getColor(), alpha);
+        blur.render(ShapeProperties.create(matrix, boxX, boxY, boxSize, boxSize)
+                .round(3).color(colorText ? boxOn : boxOff).build());
+        if (colorText) {
+            blur.render(ShapeProperties.create(matrix, boxX + 3, boxY + 3, boxSize - 6, boxSize - 6)
+                    .round(2).color(Theme.applyAlpha(0xFFFFFFFF, alpha)).build());
+        }
+        MsdfFonts.drawText(matrix, "Color text", boxX + boxSize + 7, ty + (TOGGLE_H - 7) / 2f, 7,
+                Theme.applyAlpha(theme.getWhiteInt(), alpha));
+        toggleBounds = new Rect(x + 5, ty, WIDTH - 10, TOGGLE_H);
     }
 
     private boolean inRect(double mx, double my, float rx, float ry, float rw, float rh) {
@@ -130,6 +154,11 @@ public class ThemePanel {
     public boolean mouseClicked(double mx, double my, int button) {
         float height = panelHeight();
         if (mx < x || mx > x + WIDTH || my < baseY || my > baseY + height) return false;
+
+        if (toggleBounds != null && toggleBounds.contains(mx, my)) {
+            colorText = !colorText;
+            return true;
+        }
 
         ColorSetting cs = clientColor();
         if (inRect(mx, my, svX, svY, svW, svH)) {

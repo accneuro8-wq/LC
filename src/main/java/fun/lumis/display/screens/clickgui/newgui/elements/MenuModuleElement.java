@@ -12,6 +12,8 @@ import fun.lumis.features.module.ModuleCategory;
 import fun.lumis.features.module.setting.Setting;
 import fun.lumis.features.module.setting.implement.*;
 import fun.lumis.display.screens.clickgui.newgui.utils.MsdfFonts;
+import fun.lumis.display.screens.clickgui.dropdown.ThemePanel;
+import fun.lumis.utils.display.color.ColorAssist;
 import fun.lumis.utils.display.shape.ShapeProperties;
 import lombok.Getter;
 import net.minecraft.client.gui.DrawContext;
@@ -90,7 +92,8 @@ public class MenuModuleElement extends AbstractMenuElement {
         }
 
         // Name: enabled -> accent color, disabled -> muted gray
-        int nameColor = Theme.mixColors(theme.getWhiteGrayInt(), theme.getColorInt(), animation.getValue());
+        int accentInt = ThemePanel.colorText ? ColorAssist.getClientColor() : theme.getColorInt();
+        int nameColor = Theme.mixColors(theme.getWhiteGrayInt(), accentInt, animation.getValue());
         nameColor = Theme.applyAlpha(nameColor, alpha);
         MsdfFonts.drawText(matrix, module.getVisibleName(), x + 12, y + (ROW_H - 9) / 2f, 9, nameColor);
 

@@ -6,6 +6,7 @@ import fun.lumis.display.screens.clickgui.newgui.theme.Theme;
 import fun.lumis.display.screens.clickgui.newgui.theme.ThemeManager;
 import fun.lumis.display.screens.clickgui.newgui.utils.MsdfFonts;
 import fun.lumis.features.module.ModuleCategory;
+import fun.lumis.utils.display.color.ColorAssist;
 import fun.lumis.utils.display.font.Fonts;
 import fun.lumis.utils.display.shape.ShapeProperties;
 import net.minecraft.client.gui.DrawContext;
@@ -72,13 +73,14 @@ public class DropdownPanel {
 
         // Header: icon + name, both vertically centered on the same midline
         int white = Theme.applyAlpha(theme.getWhiteInt(), alpha);
+        int nameCol = ThemePanel.colorText ? Theme.applyAlpha(ColorAssist.getClientColor(), alpha) : white;
         float headerMid = y + HEADER_H / 2f;
         float iconSize = 10f;
         float nameSize = 9f;
         Fonts.getSize((int) iconSize, Fonts.Type.ICONSCATEGORY)
                 .drawString(matrix, categoryIcon(), x + PADDING, headerMid - iconSize / 2f, white);
         float nameX = x + PADDING + iconSize + 7f;
-        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, headerMid - nameSize / 2f, (int) nameSize, white);
+        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, headerMid - nameSize / 2f, (int) nameSize, nameCol);
 
         // Divider
         blur.render(ShapeProperties.create(matrix, x + 6, y + HEADER_H - 1, WIDTH - 12, 0.75f)
