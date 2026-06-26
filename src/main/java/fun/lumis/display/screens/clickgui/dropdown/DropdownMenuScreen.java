@@ -96,23 +96,32 @@ public class DropdownMenuScreen extends Screen {
             MinecraftClient.getInstance().setScreen(null);
             return;
         }
-        float yOffset = (1f - a) * -18f;
 
-        for (DropdownPanel panel : panels) {
-            panel.render(context, mouseX, mouseY, a, yOffset);
+        // Staggered wave: each column leads/lags slightly so panels cascade.
+        int n = Math.max(1, panels.size());
+        for (int i = 0; i < panels.size(); i++) {
+            DropdownPanel panel = panels.get(i);
+            // On open the leftmost panel leads; on close the rightmost leaves first.
+            int order = closing ? i : (n - 1 - i);
+            float stagger = order * 0.07f;
+            float span = 1f - (n - 1) * 0.07f;
+            float pa = clamp01((a - stagger) / Math.max(0.0001f, span));
+            float pe = Easing.QUARTIC_OUT.apply(pa);
+            float panelOffset = (1f - pe) * -22f;
+            panel.render(context, mouseX, mouseY, pe, panelOffset);
         }
-
         // Search bar (bottom center)
         MatrixStack matrix = context.getMatrices();
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
         float sw = 220f, sh = 24f;
         float sx = (this.width - sw) / 2f;
         float sy = this.height - sh - 28f;
-        blur.render(ShapeProperties.create(matrix, sx, sy + yOffset, sw, sh).round(8).color(Theme.applyAlpha(theme.getForegroundColorInt(), a)).build());
+        float searchOffset = (1f - a) * 22f;
+        blur.render(ShapeProperties.create(matrix, sx, sy + searchOffset, sw, sh).round(8).color(Theme.applyAlpha(theme.getForegroundColorInt(), a)).build());
 
         String shown = searchText.isEmpty() ? "Поиск..." : searchText;
         int color = Theme.applyAlpha(searchText.isEmpty() ? theme.getGrayLightInt() : theme.getColorInt(), a);
-        MsdfFonts.drawText(matrix, shown, sx + 12f, sy + yOffset + 7f, 12, color);
+        MsdfFonts.drawText(matrix, shown, sx + 12f, sy + searchOffset + 7f, 12, color);
     }
 
     @Override
@@ -189,6 +198,10 @@ public class DropdownMenuScreen extends Screen {
     public void close() {
         searchText = "";
         super.close();
+    }
+
+    private static float clamp01(float v) {
+        return v < 0f ? 0f : (v > 1f ? 1f : v);
     }
 
     private void startClose() {

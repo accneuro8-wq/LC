@@ -37,6 +37,7 @@ public class MenuModuleElement extends AbstractMenuElement {
     private final Module module;
     private final List<AbstractMenuSetting> settings = new ArrayList<>();
     private final Animation animation;
+    private final Animation expandAnim;
     private Rect bounds;
     private Rect boundsDots;
     private boolean binding = false;
@@ -45,6 +46,7 @@ public class MenuModuleElement extends AbstractMenuElement {
     public MenuModuleElement(Module module) {
         this.module = module;
         animation = new Animation(200, module.isState() ? 1 : 0, Easing.LINEAR);
+        expandAnim = new Animation(220, 0, Easing.QUARTIC_OUT);
 
         for (Setting setting : module.settings()) {
             if (setting instanceof SliderSettings slider) {
@@ -71,6 +73,8 @@ public class MenuModuleElement extends AbstractMenuElement {
 
         animation.animateTo(module.isState() ? 1 : 0);
         animation.update();
+        expandAnim.animateTo(expanded && hasSettings() ? 1 : 0);
+        expandAnim.update();
 
         Theme theme = ThemeManager.getInstance().getCurrentTheme();
         boolean hasSettings = hasSettings();
@@ -105,29 +109,42 @@ public class MenuModuleElement extends AbstractMenuElement {
             }
         }
 
-        if (!showSettings) return;
+        float expand = expandAnim.getValue();
+        if (expand <= 0.001f || !hasSettings) return;
 
-        // Inline settings
+        // Inline settings (animated open/close, clipped to the animated height)
         int enabledColor = Theme.applyAlpha(Theme.mixColors(theme.getGrayInt(), theme.getColorInt(), animation.getValue()), alpha);
         int textColor = Theme.applyAlpha(Theme.mixColors(theme.getGrayLightInt(), theme.getWhiteInt(), animation.getValue()), alpha);
         int descriptionColor = Theme.applyAlpha(Theme.mixColors(theme.getWhiteGrayInt(), theme.getGrayLightInt(), animation.getValue()), alpha);
 
+        float settingsAlpha = alpha * expand;
+        float fullH = settingsHeight();
+        float animH = fullH * expand;
+        float top = y + ROW_H;
+
+        ctx.enableScissor((int) x, (int) top, (int) (x + moduleWidth), (int) Math.ceil(top + animH));
         float padding = 6;
-        float startY = y + ROW_H + padding;
+        // slide content up slightly while collapsing
+        float startY = top + padding - (1f - expand) * 8f;
         for (AbstractMenuSetting setting : settings) {
             if (!setting.isVisible()) continue;
-            setting.render(ctx, mouseX, mouseY, x, startY, moduleWidth, alpha, animation.getValue(), enabledColor, textColor, descriptionColor, theme);
+            setting.render(ctx, mouseX, mouseY, x, startY, moduleWidth, settingsAlpha, animation.getValue(), enabledColor, textColor, descriptionColor, theme);
             startY += setting.getHeight() + 8;
         }
+        ctx.disableScissor();
+    }
+
+    private float settingsHeight() {
+        return (float) settings.stream()
+                .filter(AbstractMenuSetting::isVisible)
+                .mapToDouble(m -> m.getHeight() + 8)
+                .sum() + 8;
     }
 
     @Override
     public float getHeight() {
-        if (!(expanded && hasSettings())) return ROW_H;
-        return ROW_H + (float) settings.stream()
-                .filter(AbstractMenuSetting::isVisible)
-                .mapToDouble(m -> m.getHeight() + 8)
-                .sum() + 8;
+        if (!hasSettings()) return ROW_H;
+        return ROW_H + settingsHeight() * expandAnim.getValue();
     }
 
     public boolean hasSettings() {
