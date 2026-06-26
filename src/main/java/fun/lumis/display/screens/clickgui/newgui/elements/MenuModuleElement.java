@@ -89,7 +89,7 @@ public class MenuModuleElement extends AbstractMenuElement {
         // Name (enabled -> theme color, disabled -> gray)
         int nameColor = Theme.mixColors(theme.getGrayLightInt(), theme.getColorInt(), animation.getValue());
         nameColor = Theme.applyAlpha(nameColor, alpha);
-        MsdfFonts.drawText(matrix, module.getVisibleName(), x + 10, y, moduleHeight, nameColor);
+        MsdfFonts.drawText(matrix, module.getVisibleName(), x + 10, y + 7, 13, nameColor);
 
         // Settings "dots" (vertical three-dot) on the right
         float dotsZoneW = 18f;

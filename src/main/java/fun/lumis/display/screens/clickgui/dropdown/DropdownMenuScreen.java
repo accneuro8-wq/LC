@@ -100,7 +100,7 @@ public class DropdownMenuScreen extends Screen {
 
         String shown = searchText.isEmpty() ? "Поиск..." : searchText;
         int color = searchText.isEmpty() ? theme.getGrayLightInt() : theme.getColorInt();
-        MsdfFonts.drawText(matrix, shown, sx + 12f, sy, sh, color);
+        MsdfFonts.drawText(matrix, shown, sx + 12f, sy + 7f, 12, color);
     }
 
     @Override

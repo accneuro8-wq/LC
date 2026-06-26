@@ -68,7 +68,7 @@ public class DropdownPanel {
                 .drawString(matrix, categoryIcon(), x + PADDING, iconY, textColor);
 
         float nameX = x + PADDING + iconSize + 6f;
-        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, y, 10f, textColor);
+        MsdfFonts.drawSemibold(matrix, category.getReadableName(), nameX, y + 8, 11f, textColor);
 
         // Module list (always shown)
         float moduleY = y + HEADER_H + GAP;
