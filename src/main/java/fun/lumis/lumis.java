@@ -110,8 +110,6 @@ public class lumis implements ModInitializer {
         this.MenuScreen = MenuScreen;
         
         // Initialize new GUI
-        fun.lumis.display.screens.clickgui.newgui.NewMenuScreen newMenuScreen = new fun.lumis.display.screens.clickgui.newgui.NewMenuScreen();
-        newMenuScreen.initialize();
         
         initialized = true;
 
