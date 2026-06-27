@@ -14,6 +14,7 @@ import fun.lumis.utils.display.color.ColorAssist;
 import fun.lumis.utils.client.managers.event.EventHandler;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
 import net.minecraft.client.gl.ShaderProgramKeys;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
@@ -71,8 +72,8 @@ public class WorldParticles extends Module {
 
     // perf: reused per-frame scratch + cached camera (no per-particle alloc)
     private final MatrixStack scratch = new MatrixStack();
-    private float cPitch, cYaw;
-    private double cx, cy, cz;
+    @NonFinal private float cPitch, cYaw;
+    @NonFinal private double cx, cy, cz;
 
     public WorldParticles() {
         super("WorldParticles", "WorldParticles", ModuleCategory.RENDER);
