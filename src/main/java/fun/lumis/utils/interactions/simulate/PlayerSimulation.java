@@ -506,21 +506,27 @@ public class PlayerSimulation implements Simulation, QuickImports {
             double dx = movement.x;
             double dz = movement.z;
             double step = 0.05;
-            while (dx != 0.0 && player.getWorld().isSpaceEmpty(player, boundingBox.offset(dx, -STEP_HEIGHT, 0.0))) {
+            // guard: NaN/Infinity would make these loops spin forever (NaN != 0.0 is always true)
+            if (!Double.isFinite(dx)) dx = 0.0;
+            if (!Double.isFinite(dz)) dz = 0.0;
+            int guard = 0;
+            while (dx != 0.0 && guard++ < 4096 && player.getWorld().isSpaceEmpty(player, boundingBox.offset(dx, -STEP_HEIGHT, 0.0))) {
                 if (dx < step && dx >= -step) {
                     dx = 0.0;
                     break;
                 }
                 dx += (dx > 0 ? -step : step);
             }
-            while (dz != 0.0 && player.getWorld().isSpaceEmpty(player, boundingBox.offset(0.0, -STEP_HEIGHT, dz))) {
+            guard = 0;
+            while (dz != 0.0 && guard++ < 4096 && player.getWorld().isSpaceEmpty(player, boundingBox.offset(0.0, -STEP_HEIGHT, dz))) {
                 if (dz < step && dz >= -step) {
                     dz = 0.0;
                     break;
                 }
                 dz += (dz > 0 ? -step : step);
             }
-            while (dx != 0.0 && dz != 0.0 && player.getWorld().isSpaceEmpty(player, boundingBox.offset(dx, -STEP_HEIGHT, dz))) {
+            guard = 0;
+            while (dx != 0.0 && dz != 0.0 && guard++ < 4096 && player.getWorld().isSpaceEmpty(player, boundingBox.offset(dx, -STEP_HEIGHT, dz))) {
                 dx = (dx < step && dx >= -step) ? 0.0 : (dx > 0 ? dx - step : dx + step);
                 if (dz < step && dz >= -step) {
                     dz = 0.0;
