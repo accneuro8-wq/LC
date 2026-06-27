@@ -155,7 +155,7 @@ public class Aura extends Module {
 
     // ====== Settings ======
     SelectSetting aimMode = new SelectSetting("Наводка", "Выберите тип наводки")
-            .value("None", "SpookytimeDuel", "SpookyTime", "ReallyWorld", "Vodkacraft")
+            .value("None", "SpookytimeDuel", "SpookyTime", "Sloth", "ReallyWorld", "Vodkacraft")
             .selected("SpookytimeDuel");
 
     MultiSelectSetting targetType = new MultiSelectSetting("Тип таргета", "Фильтрует весь список целей по типу")
@@ -728,6 +728,7 @@ public class Aura extends Module {
             case "Snap" -> new SnapAngle();
             case "Spooky" -> new SpookyAngle();
             case "SpookyTime" -> new SpookyFullAngle();
+            case "Sloth" -> new SlothFullAngle();
             case "ReallyWorld" -> new RWAngle();
             case "Vodkacraft" -> new VodkacraftAngle();
             case "Legit" -> new LegitAngle();
