@@ -155,7 +155,7 @@ public class Aura extends Module {
 
     // ====== Settings ======
     SelectSetting aimMode = new SelectSetting("Наводка", "Выберите тип наводки")
-            .value("None", "SpookytimeDuel", "ReallyWorld", "Vodkacraft", "FunTime")
+            .value("None", "SpookytimeDuel", "ReallyWorld", "Vodkacraft")
             .selected("SpookytimeDuel");
 
     MultiSelectSetting targetType = new MultiSelectSetting("Тип таргета", "Фильтрует весь список целей по типу")
@@ -362,9 +362,6 @@ public class Aura extends Module {
     @EventHandler
     public void onRotationUpdate(RotationUpdateEvent e) {
         try {
-            if (aimMode.isSelected("FunTime") && lumis.getInstance().getFtCheckClient() != null) {
-                lumis.getInstance().getFtCheckClient().checkAndWarnFunTime();
-            }
         } catch (Exception ignored) {}
 
         if (e.getType() == EventType.PRE) handlePreRotation();
@@ -726,7 +723,6 @@ public class Aura extends Module {
         if (mc.player != null && mc.player.isGliding()) return glidingMode;
         return smoothModeCache.computeIfAbsent(aimMode.getSelected(), k -> switch (k) {
             case "SpookytimeDuel" -> new SpookytimeDuel();
-            case "FunTime" -> new PolarAngle();
             case "HolyWorld" -> new HWAngle();
             case "HvH" -> new HAngle();
             case "Snap" -> new SnapAngle();
