@@ -259,6 +259,13 @@ public class Aura extends Module {
         if (e.getPacket() instanceof EntityStatusS2CPacket status) {
             handleEntityStatus(status);
         }
+        // do not hold/cancel packets before the world is ready, or with a stale
+        // cross-server target — this could swallow login packets and hang the join
+        if (mc.world == null || mc.player == null) { packets.clear(); return; }
+        if (target != null && (target.isRemoved() || target.getWorld() != mc.world)) {
+            target = null;
+            packets.clear();
+        }
         if (!isFakeLag() || target == null || PlayerInteractionHelper.nullCheck()) return;
 
         Packet<?> pkt = e.getPacket();
@@ -369,6 +376,14 @@ public class Aura extends Module {
     }
 
     private void handlePreRotation() {
+        if (mc.player == null || mc.world == null) {
+            target = null;
+            packets.clear();
+            return;
+        }
+        if (target != null && (target.isRemoved() || target.getWorld() != mc.world)) {
+            target = null;
+        }
         LivingEntity newTarget = updateTarget();
 
         if (newTarget == null) {
