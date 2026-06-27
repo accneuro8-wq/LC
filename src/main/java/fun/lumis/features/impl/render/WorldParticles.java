@@ -69,6 +69,11 @@ public class WorldParticles extends Module {
 
     Random random = new Random();
 
+    // perf: reused per-frame scratch + cached camera (no per-particle alloc)
+    private final MatrixStack scratch = new MatrixStack();
+    private float cPitch, cYaw;
+    private double cx, cy, cz;
+
     public WorldParticles() {
         super("WorldParticles", "WorldParticles", ModuleCategory.RENDER);
         setup(fireFlies, fireFliesCount, fireFliesSize, fireFliesTrailLength, mode, count, size, colorMode, customColor, physics);
@@ -123,6 +128,12 @@ public class WorldParticles extends Module {
         MatrixStack stack = e.getStack();
         float tickDelta = e.getPartialTicks();
 
+        Camera cam = mc.gameRenderer.getCamera();
+        cPitch = cam.getPitch();
+        cYaw = cam.getYaw();
+        Vec3d cpos = cam.getPos();
+        cx = cpos.x; cy = cpos.y; cz = cpos.z;
+
         if (fireFlies.isValue() && !fireFlyParticles.isEmpty()) {
             stack.push();
             renderParticleList(stack, tickDelta, FIREFLY_TEXTURE, fireFlyParticles);
@@ -176,6 +187,11 @@ public class WorldParticles extends Module {
         return new Color(customColor.getColor());
     }
 
+    private int getParticleColorRGB(int index) {
+        if (colorMode.isSelected("Sync")) return ColorAssist.fade(index);
+        return customColor.getColor();
+    }
+
     private float randomFloat(float min, float max) {
         return min + random.nextFloat() * (max - min);
     }
@@ -197,9 +213,9 @@ public class WorldParticles extends Module {
         }
 
         private Vec3d interpolate(float pt) {
-            double x = from.x + ((to.x - from.x) * pt) - mc.getEntityRenderDispatcher().camera.getPos().getX();
-            double y = from.y + ((to.y - from.y) * pt) - mc.getEntityRenderDispatcher().camera.getPos().getY();
-            double z = from.z + ((to.z - from.z) * pt) - mc.getEntityRenderDispatcher().camera.getPos().getZ();
+            double x = from.x + ((to.x - from.x) * pt) - cx;
+            double y = from.y + ((to.y - from.y) * pt) - cy;
+            double z = from.z + ((to.z - from.z) * pt) - cz;
             return new Vec3d(x, y, z);
         }
 
@@ -258,20 +274,19 @@ public class WorldParticles extends Module {
         public void render(BufferBuilder bufferBuilder, float tickDelta) {
             if (trails.isEmpty()) return;
 
-            Camera camera = mc.gameRenderer.getCamera();
             float quadSize = fireFliesSize.getValue();
 
             for (TrailSegment ctx : trails) {
                 Vec3d pos = ctx.interpolate(tickDelta);
 
-                MatrixStack matrices = new MatrixStack();
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(camera.getYaw() + 180.0F));
-                matrices.translate(pos.x, pos.y, pos.z);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
-                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
+                scratch.push();
+                scratch.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cPitch));
+                scratch.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(cYaw + 180.0F));
+                scratch.translate(pos.x, pos.y, pos.z);
+                scratch.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-cYaw));
+                scratch.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cPitch));
 
-                Matrix4f matrix = matrices.peek().getPositionMatrix();
+                Matrix4f matrix = scratch.peek().getPositionMatrix();
 
                 int alpha = (int) (255 * ((float) age / (float) maxAge) * ctx.animation(tickDelta));
                 alpha = Math.max(0, Math.min(255, alpha));
@@ -282,6 +297,8 @@ public class WorldParticles extends Module {
                 bufferBuilder.vertex(matrix, -quadSize, -quadSize, 0).texture(1f, 1f).color(finalColor);
                 bufferBuilder.vertex(matrix, -quadSize, 0, 0).texture(1f, 0).color(finalColor);
                 bufferBuilder.vertex(matrix, 0, 0, 0).texture(0, 0).color(finalColor);
+
+                scratch.pop();
             }
         }
     }
@@ -332,9 +349,7 @@ public class WorldParticles extends Module {
         }
 
         public void render(BufferBuilder bufferBuilder, float tickDelta) {
-            Camera camera = mc.gameRenderer.getCamera();
-
-            Color c = getParticleColor(age * 2);
+            int c = getParticleColorRGB(age * 2);
 
             Vec3d pos = interpolatePos(
                     prevposX, prevposY, prevposZ,
@@ -342,25 +357,27 @@ public class WorldParticles extends Module {
                     tickDelta
             );
 
-            MatrixStack matrices = new MatrixStack();
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(camera.getYaw() + 180.0F));
-            matrices.translate(pos.x, pos.y, pos.z);
-            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
-            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
+            scratch.push();
+            scratch.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cPitch));
+            scratch.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(cYaw + 180.0F));
+            scratch.translate(pos.x, pos.y, pos.z);
+            scratch.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-cYaw));
+            scratch.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cPitch));
 
-            Matrix4f matrix = matrices.peek().getPositionMatrix();
+            Matrix4f matrix = scratch.peek().getPositionMatrix();
 
             int alpha = (int) (255 * ((float) age / (float) maxAge));
             alpha = Math.max(0, Math.min(255, alpha));
 
-            int finalColor = ColorAssist.replAlpha(c.getRGB(), alpha);
+            int finalColor = ColorAssist.replAlpha(c, alpha);
             float quadSize = size.getValue();
 
             bufferBuilder.vertex(matrix, 0, -quadSize, 0).texture(0f, 1f).color(finalColor);
             bufferBuilder.vertex(matrix, -quadSize, -quadSize, 0).texture(1f, 1f).color(finalColor);
             bufferBuilder.vertex(matrix, -quadSize, 0, 0).texture(1f, 0).color(finalColor);
             bufferBuilder.vertex(matrix, 0, 0, 0).texture(0, 0).color(finalColor);
+
+            scratch.pop();
         }
 
         private Vec3d interpolatePos(float prevX, float prevY, float prevZ, float x, float y, float z, float tickDelta) {
@@ -368,8 +385,7 @@ public class WorldParticles extends Module {
             double iy = prevY + (y - prevY) * tickDelta;
             double iz = prevZ + (z - prevZ) * tickDelta;
 
-            Vec3d cam = mc.getEntityRenderDispatcher().camera.getPos();
-            return new Vec3d(ix - cam.x, iy - cam.y, iz - cam.z);
+            return new Vec3d(ix - cx, iy - cy, iz - cz);
         }
     }
 }
