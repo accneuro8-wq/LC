@@ -10,17 +10,16 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Random;
 
 /**
- * SpookyTime (full) — универсальная ротация под Grim на SpookyTime 1.21.
+ * SpookyTime (full) — ротация под самописный (анархия) АЦ SpookyTime 1.21.
  *
  * В отличие от SpookytimeDuel (только ближний бой 1v1), эта версия покрывает
  * весь бой: ближний/средний/дальний, быстрые цели, кб-абузы, смену целей.
  *
  * Обходы Grim:
- *  - GCD-выравнивание дельт (AimA / GCDCheck).
- *  - Ease-in-out: плавный разгон и торможение, без мгновенных снапов (RotationSpeed/AimB).
- *  - Адаптивное упреждение по горизонтальной скорости цели и дистанции (PredictionBypass).
- *  - Человеческий sway + редкие микро-твичи + мягкий дрейф точки прицеливания внутри хитбокса (AimC/Aim heuristics).
- *  - Жёсткий кламп питча и скорости; плавный перехват при смене цели (без телепортов угла).
+ *  Самописный АЦ обычно проверяет: смотришь ли в хитбокс цели (конус) и
+ *  лимит изменения угла за тик. Поэтому: минимум упреждения (не уводим прицел
+ *  из хитбокса), точка прицеливания у центра, мягкий человеческий sway,
+ *  консервативный кап скорости и лёгкое GCD-выравнивание.
  */
 public class SpookyFullAngle extends RotateConstructor {
     private final Random random = new Random();
@@ -67,15 +66,16 @@ public class SpookyFullAngle extends RotateConstructor {
         double horizSpeed = Math.hypot(dxV, dzV);
 
         // адаптивное упреждение: дальше цель/быстрее движется -> больше предикт
-        double predict = MathHelper.clamp(1.0 + horizSpeed * (1.4 + distance * 0.15), 1.0, 2.6);
+        // лёгкое упреждение — чтобы не выйти из хитбокс-конуса самописного АЦ
+        double predict = MathHelper.clamp(1.0 + horizSpeed * 0.5, 1.0, 1.35);
 
         updateOffset(entity);
 
         Vec3d eye = mc.player.getEyePos();
-        double aimHeight = entity.getEyeHeight(entity.getPose()) * (0.80 + random.nextDouble() * 0.10);
+        double aimHeight = entity.getEyeHeight(entity.getPose()) * (0.85 + random.nextDouble() * 0.06);
 
         double px = entity.getX() + dxV * predict + offX;
-        double py = entity.getY() + aimHeight + dyV * 0.5 + offY;
+        double py = entity.getY() + aimHeight + dyV * 0.3 + offY;
         double pz = entity.getZ() + dzV * predict + offZ;
 
         double dx = px - eye.x;
@@ -92,8 +92,8 @@ public class SpookyFullAngle extends RotateConstructor {
 
         // ease-in-out: разгон по мере удаления угла, плавное торможение у цели
         float ease = (float) (1.0 - Math.exp(-angleDist / 26.0)); // 0..1
-        float accel = 0.28f + ease * 0.34f;       // 0.28 .. 0.62
-        float maxSpeed = 22f + ease * 40f;        // 22 .. 62 deg/tick
+        float accel = 0.26f + ease * 0.26f;       // 0.26 .. 0.52
+        float maxSpeed = 18f + ease * 22f;        // 18 .. 40 deg/tick
 
         // мягкий перехват свежей цели — без мгновенного снапа
         if (ticksOnTarget < 5) {
@@ -123,14 +123,14 @@ public class SpookyFullAngle extends RotateConstructor {
         float nextPitch = lastPitch + pitchVel;
 
         // человеческий sway (падает в ближнем бою)
-        float swayAmp = distance < 3.0 ? 0.5f : 1.0f;
-        nextYaw += (float) (Math.sin(swayPhase * 1.7) * 1.2 + Math.cos(swayPhase * 2.3) * 0.5) * swayAmp * 0.35f;
-        nextPitch += (float) (Math.cos(swayPhase * 1.5) * 0.8) * swayAmp * 0.28f;
+        float swayAmp = distance < 3.0 ? 0.35f : 0.6f;
+        nextYaw += (float) (Math.sin(swayPhase * 1.7) * 1.2 + Math.cos(swayPhase * 2.3) * 0.5) * swayAmp * 0.22f;
+        nextPitch += (float) (Math.cos(swayPhase * 1.5) * 0.8) * swayAmp * 0.18f;
 
         // редкий микро-твич против «робота»
-        if (System.currentTimeMillis() - lastTwitch > 35 + random.nextInt(45)) {
-            nextYaw += (random.nextFloat() - 0.5f) * 0.28f;
-            nextPitch += (random.nextFloat() - 0.5f) * 0.18f;
+        if (System.currentTimeMillis() - lastTwitch > 70 + random.nextInt(80)) {
+            nextYaw += (random.nextFloat() - 0.5f) * 0.15f;
+            nextPitch += (random.nextFloat() - 0.5f) * 0.10f;
             lastTwitch = System.currentTimeMillis();
         }
 
@@ -151,9 +151,9 @@ public class SpookyFullAngle extends RotateConstructor {
 
     private void updateOffset(Entity e) {
         if (System.currentTimeMillis() - lastOffsetTime > 160 + random.nextInt(140)) {
-            tOffX = random.nextGaussian() * 0.11 * e.getWidth();
-            tOffY = random.nextGaussian() * 0.08 * e.getHeight();
-            tOffZ = random.nextGaussian() * 0.11 * e.getWidth();
+            tOffX = random.nextGaussian() * 0.06 * e.getWidth();
+            tOffY = random.nextGaussian() * 0.05 * e.getHeight();
+            tOffZ = random.nextGaussian() * 0.06 * e.getWidth();
             lastOffsetTime = System.currentTimeMillis();
         }
         offX += (tOffX - offX) * 0.12;
