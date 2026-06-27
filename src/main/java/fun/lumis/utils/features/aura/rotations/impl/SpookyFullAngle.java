@@ -10,16 +10,18 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Random;
 
 /**
- * SpookyTime (full) — ротация под самописный (анархия) АЦ SpookyTime 1.21.
+ * SpookyTime (full) — ротация под самописный + возможный ИИ/ML АЦ (анархия) SpookyTime 1.21.
  *
  * В отличие от SpookytimeDuel (только ближний бой 1v1), эта версия покрывает
  * весь бой: ближний/средний/дальний, быстрые цели, кб-абузы, смену целей.
  *
  * Обходы Grim:
- *  Самописный АЦ обычно проверяет: смотришь ли в хитбокс цели (конус) и
- *  лимит изменения угла за тик. Поэтому: минимум упреждения (не уводим прицел
- *  из хитбокса), точка прицеливания у центра, мягкий человеческий sway,
- *  консервативный кап скорости и лёгкое GCD-выравнивание.
+ *  Против ML/ИИ-АЦ важна именно НЕупорядоченность (он палит периодичность,
+ *  идеальный трекинг и постоянное сглаживание). Поэтому:
+ *   - sway = случайное блуждание (random-walk), без sin/cos периодики;
+ *   - реакционная задержка перед захватом + рандом сглаживания на цель;
+ *   - редкий естественный overshoot с докрутом;
+ *   - минимум упреждения (в хитбокс-конус), прицел у центра, кап скорости, лёгкий GCD.
  */
 public class SpookyFullAngle extends RotateConstructor {
     private final Random random = new Random();
@@ -30,6 +32,12 @@ public class SpookyFullAngle extends RotateConstructor {
     private int ticksOnTarget = 0;
     private float swayPhase = 0f;
     private long lastTwitch = 0;
+    // ML-устойчивость: random-walk sway, реакция, overshoot
+    private float walkYaw = 0f, walkPitch = 0f;
+    private float sessionSmooth = 0.5f;
+    private int reactionDelay = 0;
+    private float overshootYaw = 0f, overshootPitch = 0f;
+    private long lastOvershoot = 0;
 
     // мягкий дрейф точки прицеливания внутри хитбокса
     private double offX, offY, offZ;
@@ -52,10 +60,14 @@ public class SpookyFullAngle extends RotateConstructor {
             yawVel *= 0.2f;
             pitchVel *= 0.2f;
             swayPhase = random.nextFloat() * 6.28f;
+            reactionDelay = 1 + random.nextInt(3); // 1..3 тика реакции
+            sessionSmooth = 0.42f + random.nextFloat() * 0.16f; // рандом сглаживания на цель
+            walkYaw = walkPitch = 0f;
+            overshootYaw = overshootPitch = 0f;
             newOffset(entity);
         }
         ticksOnTarget++;
-        swayPhase += 0.17f + random.nextFloat() * 0.05f;
+        if (reactionDelay > 0) { reactionDelay--; return new Turns(lastYaw, lastPitch); }
 
         // скорость цели
         double dxV = entity.getX() - entity.prevX;
@@ -111,7 +123,7 @@ public class SpookyFullAngle extends RotateConstructor {
         if (distance < 3.0) { accel *= 0.92f; maxSpeed *= 0.85f; }
 
         accel *= 0.94f + random.nextFloat() * 0.12f;
-        float friction = 0.48f + random.nextFloat() * 0.07f;
+        float friction = sessionSmooth + random.nextFloat() * 0.05f;
 
         yawVel = yawVel * friction + (yawDiff * accel) * (1f - friction);
         pitchVel = pitchVel * friction + (pitchDiff * accel) * (1f - friction);
@@ -122,10 +134,14 @@ public class SpookyFullAngle extends RotateConstructor {
         float nextYaw = lastYaw + yawVel;
         float nextPitch = lastPitch + pitchVel;
 
-        // человеческий sway (падает в ближнем бою)
-        float swayAmp = distance < 3.0 ? 0.35f : 0.6f;
-        nextYaw += (float) (Math.sin(swayPhase * 1.7) * 1.2 + Math.cos(swayPhase * 2.3) * 0.5) * swayAmp * 0.22f;
-        nextPitch += (float) (Math.cos(swayPhase * 1.5) * 0.8) * swayAmp * 0.18f;
+        // sway как случайное блуждание (random-walk) — без периодики для ML
+        float walkAmp = distance < 3.0 ? 0.18f : 0.30f;
+        walkYaw = walkYaw * 0.86f + (float) random.nextGaussian() * walkAmp;
+        walkPitch = walkPitch * 0.86f + (float) random.nextGaussian() * walkAmp * 0.7f;
+        walkYaw = MathHelper.clamp(walkYaw, -1.4f, 1.4f);
+        walkPitch = MathHelper.clamp(walkPitch, -1.0f, 1.0f);
+        nextYaw += walkYaw;
+        nextPitch += walkPitch;
 
         // редкий микро-твич против «робота»
         if (System.currentTimeMillis() - lastTwitch > 70 + random.nextInt(80)) {
@@ -134,7 +150,18 @@ public class SpookyFullAngle extends RotateConstructor {
             lastTwitch = System.currentTimeMillis();
         }
 
-        // GCD-выравнивание (обязательно для Grim)
+        // редкий естественный overshoot с последующим докрутом (как у человека)
+        if (angleDist > 12f && System.currentTimeMillis() - lastOvershoot > 600 + random.nextInt(900)) {
+            overshootYaw = yawDiff * (0.10f + random.nextFloat() * 0.10f);
+            overshootPitch = pitchDiff * (0.08f + random.nextFloat() * 0.08f);
+            lastOvershoot = System.currentTimeMillis();
+        }
+        nextYaw += overshootYaw;
+        nextPitch += overshootPitch;
+        overshootYaw *= 0.55f; // быстрый докрут обратно
+        overshootPitch *= 0.55f;
+
+        // GCD-выравнивание (лёгкое)
         double gcd = Calculate.computeGcd();
         if (gcd > 0.0) {
             float dYaw = (float) (Math.round((nextYaw - lastYaw) / gcd) * gcd);
